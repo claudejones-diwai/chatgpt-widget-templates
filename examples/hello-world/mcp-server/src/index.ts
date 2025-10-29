@@ -96,9 +96,73 @@ export default {
 
     // MCP endpoint for ChatGPT (supports root /, /mcp, and /sse)
     if (url.pathname === "/" || url.pathname === "/mcp" || url.pathname === "/sse") {
+      // Check if this is a JSON-RPC POST request from ChatGPT
+      const contentType = request.headers.get("Content-Type") || "";
+      if (request.method === "POST" && contentType.includes("application/json")) {
+        try {
+          const body = await request.json() as any;
+
+          // Handle JSON-RPC 2.0 methods
+          if (body.jsonrpc === "2.0") {
+            let result;
+
+            switch (body.method) {
+              case "initialize":
+                result = {
+                  protocolVersion: "2024-11-05",
+                  capabilities: { tools: {} },
+                  serverInfo: { name: "hello-world-mcp-server", version: "1.0.0" },
+                };
+                break;
+
+              case "tools/list":
+                result = {
+                  tools: [{
+                    name: "greet_user",
+                    description: "Generates personalized greetings",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "User's name" },
+                        formal: { type: "boolean", description: "Use formal greeting" },
+                      },
+                      required: ["name"],
+                    },
+                  }],
+                };
+                break;
+
+              case "tools/call":
+                const toolResult = await handleTool(body.params?.arguments || {});
+                result = {
+                  content: [{
+                    type: "resource",
+                    resource: { uri: WIDGET_URL, mimeType: "text/html", text: JSON.stringify(toolResult) },
+                  }],
+                };
+                break;
+
+              default:
+                return new Response(JSON.stringify({
+                  jsonrpc: "2.0", id: body.id,
+                  error: { code: -32601, message: `Method not found: ${body.method}` },
+                }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+            }
+
+            return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), {
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            });
+          }
+        } catch (error) {
+          return new Response(JSON.stringify({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" } }), {
+            status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
+        }
+      }
+
+      // Fall back to SSE transport
       const transport = new SSEServerTransport(url.pathname, request);
       await server.connect(transport);
-
       return new Response((transport as any).readable, {
         headers: {
           "Content-Type": "text/event-stream",
