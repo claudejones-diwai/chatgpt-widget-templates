@@ -3,7 +3,11 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  InitializeRequestSchema
+} from "@modelcontextprotocol/sdk/types.js";
 import { handleTool } from "./tools/greet_user";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
@@ -23,6 +27,20 @@ const server = new Server(
     },
   }
 );
+
+// Handle initialization handshake
+server.setRequestHandler(InitializeRequestSchema, async () => {
+  return {
+    protocolVersion: "2024-11-05",
+    capabilities: {
+      tools: {},
+    },
+    serverInfo: {
+      name: "hello-world-mcp-server",
+      version: "1.0.0",
+    },
+  };
+});
 
 // Register tool listing
 server.setRequestHandler(ListToolsRequestSchema, async () => {
