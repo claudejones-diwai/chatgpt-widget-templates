@@ -110,7 +110,10 @@ export default {
               case "initialize":
                 result = {
                   protocolVersion: "2024-11-05",
-                  capabilities: { tools: {} },
+                  capabilities: {
+                    tools: {},
+                    resources: {},
+                  },
                   serverInfo: { name: "hello-world-mcp-server", version: "1.0.0" },
                 };
                 break;
@@ -128,17 +131,44 @@ export default {
                       },
                       required: ["name"],
                     },
+                    _meta: {
+                      "openai/outputTemplate": WIDGET_URL,
+                    },
+                  }],
+                };
+                break;
+
+              case "resources/list":
+                result = {
+                  resources: [{
+                    uri: WIDGET_URL,
+                    name: "Hello World Widget",
+                    description: "Greeting widget with personalized messages",
+                    mimeType: "text/html+skybridge",
                   }],
                 };
                 break;
 
               case "tools/call":
                 const toolResult = await handleTool(body.params?.arguments || {});
+                // Return text content and embedded resource for widget
                 result = {
-                  content: [{
-                    type: "resource",
-                    resource: { uri: WIDGET_URL, mimeType: "text/html", text: JSON.stringify(toolResult) },
-                  }],
+                  content: [
+                    {
+                      type: "text",
+                      text: toolResult.error
+                        ? `Error: ${toolResult.message}`
+                        : toolResult.greeting || "Greeting generated successfully",
+                    },
+                    {
+                      type: "resource",
+                      resource: {
+                        uri: WIDGET_URL,
+                        mimeType: "text/html+skybridge",
+                        text: JSON.stringify(toolResult),
+                      },
+                    },
+                  ],
                 };
                 break;
 
