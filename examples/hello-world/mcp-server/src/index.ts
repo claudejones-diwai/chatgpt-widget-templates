@@ -106,147 +106,133 @@ export default {
       return handleInfo(WIDGET_URL);
     }
 
-    // MCP JSON-RPC endpoint for ChatGPT
-    if (url.pathname === "/mcp") {
-      // /mcp endpoint ONLY handles JSON-RPC POST requests
-      if (request.method !== "POST") {
-        return new Response(JSON.stringify({
-          error: "Method not allowed. POST required for JSON-RPC."
-        }), {
-          status: 405,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        });
-      }
+    // MCP endpoint for ChatGPT (supports root /, /mcp, and /sse)
+    if (url.pathname === "/" || url.pathname === "/mcp" || url.pathname === "/sse") {
+      // Check if this is a JSON-RPC POST request from ChatGPT
+      const contentType = request.headers.get("Content-Type") || "";
+      if (request.method === "POST" && contentType.includes("application/json")) {
+        try {
+          const body = await request.json() as any;
 
-      try {
-        const body = await request.json() as any;
+          // Handle JSON-RPC 2.0 methods
+          if (body.jsonrpc === "2.0") {
+            let result;
 
-        // Handle JSON-RPC 2.0 methods
-        if (body.jsonrpc !== "2.0") {
-          return new Response(JSON.stringify({
-            jsonrpc: "2.0", id: body.id,
-            error: { code: -32600, message: "Invalid Request: must be JSON-RPC 2.0" },
-          }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-        }
-
-        let result;
-
-        switch (body.method) {
-          case "initialize":
-            result = {
-              protocolVersion: "2024-11-05",
-              capabilities: {
-                tools: {},
-                resources: {},
-              },
-              serverInfo: { name: "hello-world-mcp-server", version: "1.0.0" },
-            };
-            break;
-
-          case "tools/list":
-            result = {
-              tools: [{
-                name: "greet_user",
-                description: "Generates personalized greetings",
-                inputSchema: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string", description: "User's name" },
-                    formal: { type: "boolean", description: "Use formal greeting" },
-                  },
-                  required: ["name"],
-                },
-                _meta: {
-                  "openai/outputTemplate": WIDGET_URL,
-                },
-              }],
-            };
-            break;
-
-          case "resources/list":
-            result = {
-              resources: [{
-                uri: WIDGET_URL,
-                name: "Hello World Widget",
-                description: "Greeting widget with personalized messages",
-                mimeType: "text/html+skybridge",
-              }],
-            };
-            break;
-
-          case "resources/read":
-            const requestedUri = body.params?.uri;
-            if (requestedUri === WIDGET_URL) {
-              try {
-                const widgetResponse = await fetch(WIDGET_URL);
-                const widgetHtml = await widgetResponse.text();
+            switch (body.method) {
+              case "initialize":
                 result = {
-                  contents: [{
-                    uri: WIDGET_URL,
-                    mimeType: "text/html+skybridge",
-                    text: widgetHtml,
+                  protocolVersion: "2024-11-05",
+                  capabilities: {
+                    tools: {},
+                    resources: {},
+                  },
+                  serverInfo: { name: "hello-world-mcp-server", version: "1.0.0" },
+                };
+                break;
+
+              case "tools/list":
+                result = {
+                  tools: [{
+                    name: "greet_user",
+                    description: "Generates personalized greetings",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "User's name" },
+                        formal: { type: "boolean", description: "Use formal greeting" },
+                      },
+                      required: ["name"],
+                    },
+                    _meta: {
+                      "openai/outputTemplate": WIDGET_URL,
+                    },
                   }],
                 };
-              } catch (error) {
+                break;
+
+              case "resources/list":
+                result = {
+                  resources: [{
+                    uri: WIDGET_URL,
+                    name: "Hello World Widget",
+                    description: "Greeting widget with personalized messages",
+                    mimeType: "text/html+skybridge",
+                  }],
+                };
+                break;
+
+              case "resources/read":
+                // ChatGPT requests the widget HTML
+                const requestedUri = body.params?.uri;
+                if (requestedUri === WIDGET_URL) {
+                  try {
+                    // Fetch the widget HTML from Cloudflare Pages
+                    const widgetResponse = await fetch(WIDGET_URL);
+                    const widgetHtml = await widgetResponse.text();
+
+                    result = {
+                      contents: [{
+                        uri: WIDGET_URL,
+                        mimeType: "text/html+skybridge",
+                        text: widgetHtml,
+                      }],
+                    };
+                  } catch (error) {
+                    return new Response(JSON.stringify({
+                      jsonrpc: "2.0", id: body.id,
+                      error: { code: -32603, message: `Failed to fetch widget: ${error}` },
+                    }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+                  }
+                } else {
+                  return new Response(JSON.stringify({
+                    jsonrpc: "2.0", id: body.id,
+                    error: { code: -32602, message: `Unknown resource URI: ${requestedUri}` },
+                  }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+                }
+                break;
+
+              case "tools/call":
+                const toolResult = await handleTool(body.params?.arguments || {});
+                // Return text content and embedded resource for widget
+                result = {
+                  content: [
+                    {
+                      type: "text",
+                      text: toolResult.error
+                        ? `Error: ${toolResult.message}`
+                        : toolResult.greeting || "Greeting generated successfully",
+                    },
+                    {
+                      type: "resource",
+                      resource: {
+                        uri: WIDGET_URL,
+                        mimeType: "text/html+skybridge",
+                        text: JSON.stringify(toolResult),
+                      },
+                    },
+                  ],
+                };
+                break;
+
+              default:
                 return new Response(JSON.stringify({
                   jsonrpc: "2.0", id: body.id,
-                  error: { code: -32603, message: `Failed to fetch widget: ${error}` },
+                  error: { code: -32601, message: `Method not found: ${body.method}` },
                 }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-              }
-            } else {
-              return new Response(JSON.stringify({
-                jsonrpc: "2.0", id: body.id,
-                error: { code: -32602, message: `Unknown resource URI: ${requestedUri}` },
-              }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
             }
-            break;
 
-          case "tools/call":
-            const toolResult = await handleTool(body.params?.arguments || {});
-            result = {
-              content: [
-                {
-                  type: "text",
-                  text: toolResult.error
-                    ? `Error: ${toolResult.message}`
-                    : toolResult.greeting || "Greeting generated successfully",
-                },
-                {
-                  type: "resource",
-                  resource: {
-                    uri: WIDGET_URL,
-                    mimeType: "text/html+skybridge",
-                    text: JSON.stringify(toolResult),
-                  },
-                },
-              ],
-            };
-            break;
-
-          default:
-            return new Response(JSON.stringify({
-              jsonrpc: "2.0", id: body.id,
-              error: { code: -32601, message: `Method not found: ${body.method}` },
-            }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+            return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), {
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            });
+          }
+        } catch (error) {
+          return new Response(JSON.stringify({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" } }), {
+            status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          });
         }
-
-        return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), {
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        });
-      } catch (error) {
-        console.error("JSON-RPC error:", error);
-        return new Response(JSON.stringify({
-          jsonrpc: "2.0",
-          error: { code: -32700, message: `Parse error: ${error}` },
-        }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        });
       }
-    }
 
-    // SSE endpoint (for streaming connections)
-    if (url.pathname === "/" || url.pathname === "/sse") {
+      // Fall back to SSE transport for non-JSON-RPC requests
       const transport = new SSEServerTransport(url.pathname, request);
       await server.connect(transport);
       return new Response((transport as any).readable, {
@@ -259,7 +245,7 @@ export default {
       });
     }
 
-    // Default 404
+    // Default 404 for unmatched routes
     return new Response("Not Found", { status: 404 });
   },
 };
