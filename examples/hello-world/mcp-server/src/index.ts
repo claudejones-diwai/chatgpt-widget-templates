@@ -84,6 +84,18 @@ export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
+    // Handle CORS preflight FIRST (before any other logic)
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
     // Health check endpoint
     if (url.pathname === "/health") {
       return handleHealth(WIDGET_URL);
@@ -96,7 +108,7 @@ export default {
 
     // MCP JSON-RPC endpoint for ChatGPT
     if (url.pathname === "/mcp") {
-      // /mcp endpoint ONLY handles JSON-RPC (no SSE fallback)
+      // /mcp endpoint ONLY handles JSON-RPC POST requests
       if (request.method !== "POST") {
         return new Response(JSON.stringify({
           error: "Method not allowed. POST required for JSON-RPC."
@@ -247,18 +259,7 @@ export default {
       });
     }
 
-    // Handle CORS preflight
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-          "Access-Control-Max-Age": "86400",
-        },
-      });
-    }
-
+    // Default 404
     return new Response("Not Found", { status: 404 });
   },
 };
