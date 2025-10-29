@@ -164,59 +164,68 @@
             document.getElementById('status').innerHTML = '<strong>Status:</strong> ' + msg;
         }
 
+        function injectData(iframe, data, description) {
+            try {
+                const win = iframe.contentWindow;
+
+                // Inject window.openai API
+                win.openai = {
+                    theme: theme,
+                    displayMode: 'inline',
+                    maxHeight: 600,
+                    locale: 'en-US',
+                    userAgent: {
+                        device: { type: 'desktop' },
+                        capabilities: { hover: true, touch: false }
+                    },
+                    safeArea: {
+                        insets: { top: 0, bottom: 0, left: 0, right: 0 }
+                    },
+                    toolInvocation: {
+                        output: data
+                    },
+                    toolInput: null,
+                    toolOutput: data,
+                    toolResponseMetadata: null,
+                    widgetState: null,
+                    setWidgetState: async function(state) {
+                        console.log('setWidgetState called:', state);
+                        return Promise.resolve();
+                    },
+                    callTool: async function(name, args) {
+                        console.log('callTool called:', name, args);
+                        alert('Tool called: ' + name + '\nArgs: ' + JSON.stringify(args, null, 2));
+                        return Promise.resolve();
+                    }
+                };
+
+                // Dispatch the custom event that the widget listens for
+                win.dispatchEvent(new Event('openai:set_globals'));
+
+                updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
+            } catch (e) {
+                updateStatus('❌ Error: ' + e.message + '. Make sure server is running at http://localhost:4444');
+                console.error('Failed to inject data:', e);
+            }
+        }
+
         function loadWidget(data, description) {
             updateStatus('Loading widget with ' + description + '...');
             const iframe = document.getElementById('widget');
 
-            iframe.onload = function() {
-                try {
-                    const win = iframe.contentWindow;
-
-                    // Inject window.openai API
-                    win.openai = {
-                        theme: theme,
-                        displayMode: 'inline',
-                        maxHeight: 600,
-                        locale: 'en-US',
-                        userAgent: {
-                            device: { type: 'desktop' },
-                            capabilities: { hover: true, touch: false }
-                        },
-                        safeArea: {
-                            insets: { top: 0, bottom: 0, left: 0, right: 0 }
-                        },
-                        toolInvocation: {
-                            output: data
-                        },
-                        toolInput: null,
-                        toolOutput: data,
-                        toolResponseMetadata: null,
-                        widgetState: null,
-                        setWidgetState: async function(state) {
-                            console.log('setWidgetState called:', state);
-                            return Promise.resolve();
-                        },
-                        callTool: async function(name, args) {
-                            console.log('callTool called:', name, args);
-                            alert('Tool called: ' + name + '\nArgs: ' + JSON.stringify(args, null, 2));
-                            return Promise.resolve();
-                        }
-                    };
-
-                    // Dispatch the custom event that the widget listens for
-                    win.dispatchEvent(new Event('openai:set_globals'));
-
-                    updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
+            // Check if iframe is already loaded
+            if (iframe.src === 'http://localhost:4444/' || iframe.src === 'http://localhost:4444') {
+                // Already loaded, just inject data directly
+                injectData(iframe, data, description);
+            } else {
+                // Not loaded yet, set up onload handler
+                iframe.onload = function() {
+                    injectData(iframe, data, description);
                     iframe.onload = null; // Remove handler
-                } catch (e) {
-                    updateStatus('❌ Error: ' + e.message + '. Make sure server is running at http://localhost:4444');
-                    console.error('Failed to inject data:', e);
-                    iframe.onload = null;
-                }
-            };
-
-            // Load the widget
-            iframe.src = 'http://localhost:4444';
+                };
+                // Load the widget
+                iframe.src = 'http://localhost:4444';
+            }
         }
 
         function loadWithGreeting() {
