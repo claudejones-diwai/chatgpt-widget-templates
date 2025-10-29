@@ -167,16 +167,8 @@
         function loadWidget(data, description) {
             updateStatus('Loading widget with ' + description + '...');
             const iframe = document.getElementById('widget');
-            let hasInjected = false;
 
             iframe.onload = function() {
-                // Prevent infinite reload loop
-                if (hasInjected) {
-                    iframe.onload = null; // Remove handler after data is set
-                    updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
-                    return;
-                }
-
                 try {
                     const win = iframe.contentWindow;
 
@@ -202,18 +194,20 @@
                         widgetState: null,
                         setWidgetState: async function(state) {
                             console.log('setWidgetState called:', state);
+                            return Promise.resolve();
                         },
                         callTool: async function(name, args) {
                             console.log('callTool called:', name, args);
                             alert('Tool called: ' + name + '\nArgs: ' + JSON.stringify(args, null, 2));
+                            return Promise.resolve();
                         }
                     };
 
-                    // Mark as injected and reload once
-                    hasInjected = true;
-                    setTimeout(function() {
-                        win.location.reload();
-                    }, 100);
+                    // Dispatch the custom event that the widget listens for
+                    win.dispatchEvent(new Event('openai:set_globals'));
+
+                    updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
+                    iframe.onload = null; // Remove handler
                 } catch (e) {
                     updateStatus('❌ Error: ' + e.message + '. Make sure server is running at http://localhost:4444');
                     console.error('Failed to inject data:', e);
