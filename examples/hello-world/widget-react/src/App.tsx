@@ -29,7 +29,7 @@ export default function App() {
     setIsLoading(true);
     try {
       // Call MCP tool
-      await window.openai?.callTool("greet_user", data as Record<string, unknown>);
+      await window.openai?.callTool("greet_user", data as unknown as Record<string, unknown>);
       // Widget will re-render with new toolData
     } catch (error) {
       console.error("Tool call failed:", error);
