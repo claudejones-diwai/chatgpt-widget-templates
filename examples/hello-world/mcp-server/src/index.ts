@@ -149,6 +149,36 @@ export default {
                 };
                 break;
 
+              case "resources/read":
+                // ChatGPT requests the widget HTML
+                const requestedUri = body.params?.uri;
+                if (requestedUri === WIDGET_URL) {
+                  try {
+                    // Fetch the widget HTML from Cloudflare Pages
+                    const widgetResponse = await fetch(WIDGET_URL);
+                    const widgetHtml = await widgetResponse.text();
+
+                    result = {
+                      contents: [{
+                        uri: WIDGET_URL,
+                        mimeType: "text/html+skybridge",
+                        text: widgetHtml,
+                      }],
+                    };
+                  } catch (error) {
+                    return new Response(JSON.stringify({
+                      jsonrpc: "2.0", id: body.id,
+                      error: { code: -32603, message: `Failed to fetch widget: ${error}` },
+                    }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+                  }
+                } else {
+                  return new Response(JSON.stringify({
+                    jsonrpc: "2.0", id: body.id,
+                    error: { code: -32602, message: `Unknown resource URI: ${requestedUri}` },
+                  }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+                }
+                break;
+
               case "tools/call":
                 const toolResult = await handleTool(body.params?.arguments || {});
                 // Return text content and embedded resource for widget
