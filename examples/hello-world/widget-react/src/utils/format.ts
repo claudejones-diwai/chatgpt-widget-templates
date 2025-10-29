@@ -1,7 +1,5 @@
 // Formatting Utilities
 
-import { useOpenAiGlobal } from "../hooks/useOpenAiGlobal";
-
 /**
  * Formats a date based on the user's locale
  *

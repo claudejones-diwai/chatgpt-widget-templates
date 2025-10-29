@@ -29,7 +29,7 @@ export default function App() {
     setIsLoading(true);
     try {
       // Call MCP tool
-      await window.openai?.callTool("greet_user", data);
+      await window.openai?.callTool("greet_user", data as Record<string, unknown>);
       // Widget will re-render with new toolData
     } catch (error) {
       console.error("Tool call failed:", error);
@@ -109,7 +109,7 @@ export default function App() {
             </div>
 
             {/* Display mode indicator (dev only) */}
-            {process.env.NODE_ENV === "development" && (
+            {import.meta.env.DEV && (
               <div className="mt-4 text-xs text-gray-500 dark:text-gray-500 text-center">
                 Mode: {displayMode || "unknown"} | Theme: {theme || "unknown"}
               </div>
