@@ -1,0 +1,14 @@
+{
+  "name": "{{PROJECT_NAME}}-shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for {{WIDGET_NAME}}",
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "keywords": ["types", "typescript", "mcp", "widget"],
+  "author": "",
+  "license": "MIT"
+}

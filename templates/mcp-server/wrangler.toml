@@ -1,0 +1,16 @@
+name = "{{PROJECT_NAME}}-mcp-server"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Environment variables (use wrangler secret for sensitive data)
+# [vars]
+# EXAMPLE_VAR = "value"
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# - OPENAI_API_KEY
+# - DATABASE_URL
+# etc.
