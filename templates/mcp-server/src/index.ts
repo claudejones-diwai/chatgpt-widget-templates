@@ -92,12 +92,12 @@ export default {
       return handleInfo(WIDGET_URL);
     }
 
-    // SSE endpoint for ChatGPT
-    if (url.pathname === "/sse") {
-      const transport = new SSEServerTransport("/sse", request);
+    // MCP endpoint for ChatGPT (supports both /mcp and /sse)
+    if (url.pathname === "/mcp" || url.pathname === "/sse") {
+      const transport = new SSEServerTransport(url.pathname, request);
       await server.connect(transport);
 
-      return new Response(transport.readable, {
+      return new Response((transport as any).readable, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
