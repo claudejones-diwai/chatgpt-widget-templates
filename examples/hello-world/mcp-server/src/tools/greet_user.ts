@@ -21,7 +21,7 @@ export async function handleTool(
       return createError("VALIDATION_ERROR", validation.errors.join(", "));
     }
 
-    const input = args as HelloWorldToolInput;
+    const input = args as unknown as HelloWorldToolInput;
 
     // TODO: Implement your tool logic here
     // This is where you would:

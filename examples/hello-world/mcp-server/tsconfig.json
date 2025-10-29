@@ -20,7 +20,7 @@
     /* Module Resolution */
     "types": ["@cloudflare/workers-types"],
     "esModuleInterop": true,
-    "forceConsistentCasingInFiles": true,
+    "forceConsistentCasingInFileNames": true,
 
     /* Path Mapping */
     "baseUrl": ".",

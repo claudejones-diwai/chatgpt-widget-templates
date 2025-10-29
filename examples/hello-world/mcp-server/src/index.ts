@@ -55,7 +55,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   if (name === "greet_user") {
-    const result = await handleTool(args);
+    const result = await handleTool(args ?? {});
 
     return {
       content: [
@@ -94,7 +94,7 @@ export default {
       const transport = new SSEServerTransport("/sse", request);
       await server.connect(transport);
 
-      return new Response(transport.readable, {
+      return new Response((transport as any).readable, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",

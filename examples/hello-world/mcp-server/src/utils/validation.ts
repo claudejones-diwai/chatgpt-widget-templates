@@ -22,20 +22,23 @@ export function validateInput(
     const fieldSchema = schema.properties[key as keyof typeof schema.properties];
     if (!fieldSchema) continue;
 
-    if (fieldSchema.type === "string" && typeof value !== "string") {
+    const fieldType = (fieldSchema as any).type;
+    const minLength = (fieldSchema as any).minLength;
+
+    if (fieldType === "string" && typeof value !== "string") {
       errors.push(`${key} must be a string`);
     }
-    if (fieldSchema.type === "number" && typeof value !== "number") {
+    if (fieldType === "number" && typeof value !== "number") {
       errors.push(`${key} must be a number`);
     }
-    if (fieldSchema.type === "boolean" && typeof value !== "boolean") {
+    if (fieldType === "boolean" && typeof value !== "boolean") {
       errors.push(`${key} must be a boolean`);
     }
 
     // String constraints
-    if (fieldSchema.type === "string" && typeof value === "string") {
-      if ("minLength" in fieldSchema && value.length < fieldSchema.minLength) {
-        errors.push(`${key} must be at least ${fieldSchema.minLength} characters`);
+    if (fieldType === "string" && typeof value === "string") {
+      if (minLength !== undefined && value.length < minLength) {
+        errors.push(`${key} must be at least ${minLength} characters`);
       }
     }
   }
