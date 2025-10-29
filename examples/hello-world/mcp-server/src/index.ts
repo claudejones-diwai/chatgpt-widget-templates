@@ -8,11 +8,8 @@ import { handleTool } from "./tools/greet_user";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
 
-// IMPORTANT: Update this URL after deploying your widget to Cloudflare Pages
-// Step 1: Deploy widget to Pages (npx wrangler pages deploy)
-// Step 2: Copy the URL here
-// Step 3: Deploy this MCP server (npm run deploy)
-const WIDGET_URL = "https://PLACEHOLDER-REPLACE-AFTER-WIDGET-DEPLOYMENT.pages.dev";
+// Widget URL - deployed to Cloudflare Pages
+const WIDGET_URL = "https://e57ba5d0.hello-world-widget.pages.dev";
 
 // Create MCP server
 const server = new Server(
