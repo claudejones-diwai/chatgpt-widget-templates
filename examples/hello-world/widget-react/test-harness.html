@@ -167,8 +167,16 @@
         function loadWidget(data, description) {
             updateStatus('Loading widget with ' + description + '...');
             const iframe = document.getElementById('widget');
+            let hasInjected = false;
 
             iframe.onload = function() {
+                // Prevent infinite reload loop
+                if (hasInjected) {
+                    iframe.onload = null; // Remove handler after data is set
+                    updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
+                    return;
+                }
+
                 try {
                     const win = iframe.contentWindow;
 
@@ -201,14 +209,15 @@
                         }
                     };
 
-                    // Give it a moment, then reload to apply data
+                    // Mark as injected and reload once
+                    hasInjected = true;
                     setTimeout(function() {
                         win.location.reload();
-                        updateStatus('✅ Loaded with ' + description + '! Theme: ' + theme);
                     }, 100);
                 } catch (e) {
                     updateStatus('❌ Error: ' + e.message + '. Make sure server is running at http://localhost:4444');
                     console.error('Failed to inject data:', e);
+                    iframe.onload = null;
                 }
             };
 
