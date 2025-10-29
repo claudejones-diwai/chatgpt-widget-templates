@@ -7,6 +7,7 @@ export function handleInfo(widgetUrl: string): Response {
       description: "{{TOOL_DESCRIPTION}}",
       version: "1.0.0",
       endpoints: {
+        mcp: "/mcp",
         sse: "/sse",
         health: "/health",
         info: "/",
