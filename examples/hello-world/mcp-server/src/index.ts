@@ -84,13 +84,13 @@ export default {
       return handleHealth(WIDGET_URL);
     }
 
-    // Server info endpoint
-    if (url.pathname === "/" || url.pathname === "/info") {
+    // Server info endpoint (GET requests only)
+    if ((url.pathname === "/" || url.pathname === "/info") && request.method === "GET") {
       return handleInfo(WIDGET_URL);
     }
 
-    // MCP endpoint for ChatGPT (supports both /mcp and /sse)
-    if (url.pathname === "/mcp" || url.pathname === "/sse") {
+    // MCP endpoint for ChatGPT (supports root /, /mcp, and /sse)
+    if (url.pathname === "/" || url.pathname === "/mcp" || url.pathname === "/sse") {
       const transport = new SSEServerTransport(url.pathname, request);
       await server.connect(transport);
 
