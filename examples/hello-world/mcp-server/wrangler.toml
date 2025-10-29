@@ -1,6 +1,6 @@
 name = "hello-world-mcp-server"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-10-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "8f58b8f2bca2bbc0e8bd901bae9299a5"
 
