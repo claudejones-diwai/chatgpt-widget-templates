@@ -1,6 +1,8 @@
 /* Global styles with Tailwind */
 
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Base styles */
 * {

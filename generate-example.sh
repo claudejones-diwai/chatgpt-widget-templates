@@ -53,8 +53,8 @@ for file in templates/widget-react/{package.json,tsconfig.json,vite.config.ts,ta
   [[ -f $file ]] && process_file "$file" "examples/$PROJECT_NAME/widget-react/$(basename $file)"
 done
 
-# Copy widget public files
-process_file "templates/widget-react/public/index.html" "examples/$PROJECT_NAME/widget-react/public/index.html"
+# Copy widget index.html (root level, not in public/)
+process_file "templates/widget-react/index.html" "examples/$PROJECT_NAME/widget-react/index.html"
 
 # Copy MCP server files
 find templates/mcp-server/src -type f | while read file; do
