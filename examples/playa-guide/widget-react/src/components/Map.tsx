@@ -14,7 +14,7 @@ interface MapProps {
   centerCoordinates: { lat: number; lng: number };
 }
 
-export function Map({ places, selectedPlace, onPlaceSelect, theme, centerCoordinates }: MapProps) {
+export function Map({ places = [], selectedPlace, onPlaceSelect, theme, centerCoordinates }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());

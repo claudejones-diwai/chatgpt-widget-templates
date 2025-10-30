@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playa Guide - Test Harness</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .controls h2 {
+      margin-top: 0;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button.secondary {
+      background: #6b7280;
+    }
+    button.secondary:hover {
+      background: #4b5563;
+    }
+    select {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-right: 10px;
+    }
+    #widget-frame {
+      width: 100%;
+      height: 800px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+    }
+    .info {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h2>🗺️ Playa del Carmen Guide - Test Harness</h2>
+
+    <div class="info">
+      <strong>Test the widget locally with mock ChatGPT data.</strong>
+      Select a scenario below to load different data into the widget.
+    </div>
+
+    <div class="button-group">
+      <button onclick="loadAllPlaces()">Load All Places</button>
+      <button onclick="loadRestaurants()">Load Restaurants</button>
+      <button onclick="loadBeaches()">Load Beaches</button>
+      <button onclick="loadActivities()">Load Activities</button>
+      <button onclick="loadError()">Test Error State</button>
+    </div>
+
+    <div>
+      <label>
+        Theme:
+        <select id="theme-select" onchange="changeTheme()">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+
+      <label>
+        Display Mode:
+        <select id="mode-select" onchange="changeDisplayMode()">
+          <option value="inline">Inline</option>
+          <option value="fullscreen">Fullscreen</option>
+          <option value="pip">PIP</option>
+        </select>
+      </label>
+
+      <button class="secondary" onclick="reloadWidget()">Reload Widget</button>
+    </div>
+  </div>
+
+  <iframe id="widget-frame" src="http://localhost:5173"></iframe>
+
+  <script>
+    let currentTheme = 'light';
+    let currentDisplayMode = 'inline';
+
+    // Mock window.openai global for the iframe
+    function setupMockOpenAI(iframe, toolOutput) {
+      const subscribers = new Set();
+
+      iframe.contentWindow.openai = {
+        theme: currentTheme,
+        displayMode: currentDisplayMode,
+        maxHeight: 800,
+        toolOutput: toolOutput,
+        widgetState: null,
+        locale: 'en-US',
+
+        sendFollowUpMessage: async (options) => {
+          console.log('Follow-up message:', options.prompt);
+          alert(`Follow-up message: ${options.prompt}`);
+        },
+
+        callTool: async (options) => {
+          console.log('Call tool:', options);
+        },
+
+        subscribe: (callback) => {
+          subscribers.add(callback);
+          return () => subscribers.delete(callback);
+        },
+
+        // Helper to trigger updates
+        _notify: () => {
+          subscribers.forEach(cb => cb());
+        }
+      };
+
+      // Notify subscribers of initial state
+      setTimeout(() => {
+        subscribers.forEach(cb => cb());
+      }, 100);
+    }
+
+    function getIframe() {
+      return document.getElementById('widget-frame');
+    }
+
+    function loadAllPlaces() {
+      const iframe = getIframe();
+      iframe.onload = () => {
+        setupMockOpenAI(iframe, {
+          places: [
+            {
+              id: "rest-001",
+              name: "Alux Restaurant",
+              category: "restaurant",
+              description: "Unique fine dining experience in a natural cave system with stunning stalactites and stalagmites.",
+              address: "Avenida Juárez, Manzana 21, 77710 Playa del Carmen",
+              coordinates: { lat: 20.6257, lng: -87.0725 },
+              rating: 4.5,
+              priceLevel: 4,
+              hours: "6:00 PM - 12:00 AM",
+              highlights: ["Cave Dining", "Fine Dining", "Romantic", "Unique Experience"],
+              website: "https://www.aluxrestaurant.com"
+            },
+            {
+              id: "beach-001",
+              name: "Playa Mamitas",
+              category: "beach",
+              description: "Popular beach club with vibrant atmosphere, music, and beach activities.",
+              address: "Calle 28 Norte, Playa del Carmen",
+              coordinates: { lat: 20.6318, lng: -87.0764 },
+              rating: 4.4,
+              priceLevel: 3,
+              hours: "9:00 AM - 6:00 PM",
+              highlights: ["Beach Club", "Water Sports", "Music", "Lively Atmosphere"]
+            },
+            {
+              id: "activity-001",
+              name: "Xcaret Park",
+              category: "activity",
+              description: "Eco-archaeological park with underground rivers, wildlife, beach, and evening cultural show.",
+              address: "Carretera Chetumal-Puerto Juárez Km 282, Playa del Carmen",
+              coordinates: { lat: 20.5791, lng: -87.1197 },
+              rating: 4.8,
+              priceLevel: 4,
+              hours: "8:30 AM - 10:30 PM",
+              highlights: ["Theme Park", "Underground Rivers", "Cultural Show", "Family-Friendly"],
+              website: "https://www.xcaret.com"
+            }
+          ],
+          location: "Playa del Carmen",
+          category: "all",
+          totalCount: 3,
+          centerCoordinates: { lat: 20.6296, lng: -87.0739 }
+        });
+      };
+      iframe.src = iframe.src; // Reload
+    }
+
+    function loadRestaurants() {
+      const iframe = getIframe();
+      iframe.onload = () => {
+        setupMockOpenAI(iframe, {
+          places: [
+            {
+              id: "rest-001",
+              name: "Alux Restaurant",
+              category: "restaurant",
+              description: "Unique fine dining experience in a natural cave system.",
+              address: "Avenida Juárez, Manzana 21, 77710 Playa del Carmen",
+              coordinates: { lat: 20.6257, lng: -87.0725 },
+              rating: 4.5,
+              priceLevel: 4,
+              highlights: ["Cave Dining", "Fine Dining", "Romantic"]
+            },
+            {
+              id: "rest-002",
+              name: "La Cueva del Chango",
+              category: "restaurant",
+              description: "Charming jungle-themed restaurant serving authentic Mexican breakfast.",
+              address: "Calle 38 between 5th Ave and the beach",
+              coordinates: { lat: 20.6336, lng: -87.0753 },
+              rating: 4.7,
+              priceLevel: 2,
+              highlights: ["Mexican Cuisine", "Garden Setting", "Breakfast"]
+            }
+          ],
+          location: "Playa del Carmen",
+          category: "restaurants",
+          totalCount: 2,
+          centerCoordinates: { lat: 20.6296, lng: -87.0739 }
+        });
+      };
+      iframe.src = iframe.src;
+    }
+
+    function loadBeaches() {
+      const iframe = getIframe();
+      iframe.onload = () => {
+        setupMockOpenAI(iframe, {
+          places: [
+            {
+              id: "beach-001",
+              name: "Playa Mamitas",
+              category: "beach",
+              description: "Popular beach club with vibrant atmosphere.",
+              address: "Calle 28 Norte, Playa del Carmen",
+              coordinates: { lat: 20.6318, lng: -87.0764 },
+              rating: 4.4,
+              priceLevel: 3,
+              highlights: ["Beach Club", "Water Sports", "Music"]
+            },
+            {
+              id: "beach-002",
+              name: "Playacar Beach",
+              category: "beach",
+              description: "Quieter, more upscale beach area with soft white sand.",
+              address: "Playacar, Playa del Carmen",
+              coordinates: { lat: 20.6175, lng: -87.0702 },
+              rating: 4.7,
+              priceLevel: 2,
+              highlights: ["Family-Friendly", "Quiet", "White Sand"]
+            }
+          ],
+          location: "Playa del Carmen",
+          category: "beaches",
+          totalCount: 2,
+          centerCoordinates: { lat: 20.6296, lng: -87.0739 }
+        });
+      };
+      iframe.src = iframe.src;
+    }
+
+    function loadActivities() {
+      const iframe = getIframe();
+      iframe.onload = () => {
+        setupMockOpenAI(iframe, {
+          places: [
+            {
+              id: "activity-001",
+              name: "Xcaret Park",
+              category: "activity",
+              description: "Eco-archaeological park with underground rivers.",
+              address: "Carretera Chetumal-Puerto Juárez Km 282",
+              coordinates: { lat: 20.5791, lng: -87.1197 },
+              rating: 4.8,
+              priceLevel: 4,
+              highlights: ["Theme Park", "Underground Rivers", "Cultural Show"]
+            }
+          ],
+          location: "Playa del Carmen",
+          category: "activities",
+          totalCount: 1,
+          centerCoordinates: { lat: 20.5791, lng: -87.1197 }
+        });
+      };
+      iframe.src = iframe.src;
+    }
+
+    function loadError() {
+      const iframe = getIframe();
+      iframe.onload = () => {
+        setupMockOpenAI(iframe, {
+          places: [],
+          location: "Mars",
+          category: "all",
+          totalCount: 0,
+          centerCoordinates: { lat: 20.6296, lng: -87.0739 },
+          error: true,
+          message: "Sorry, this guide only covers Playa del Carmen."
+        });
+      };
+      iframe.src = iframe.src;
+    }
+
+    function changeTheme() {
+      currentTheme = document.getElementById('theme-select').value;
+      const iframe = getIframe();
+      if (iframe.contentWindow.openai) {
+        iframe.contentWindow.openai.theme = currentTheme;
+        iframe.contentWindow.openai._notify();
+      }
+    }
+
+    function changeDisplayMode() {
+      currentDisplayMode = document.getElementById('mode-select').value;
+      const iframe = getIframe();
+      if (iframe.contentWindow.openai) {
+        iframe.contentWindow.openai.displayMode = currentDisplayMode;
+        iframe.contentWindow.openai._notify();
+      }
+    }
+
+    function reloadWidget() {
+      const iframe = getIframe();
+      iframe.src = iframe.src;
+    }
+
+    // Load all places by default on page load
+    window.addEventListener('load', () => {
+      setTimeout(loadAllPlaces, 500);
+    });
+  </script>
+</body>
+</html>

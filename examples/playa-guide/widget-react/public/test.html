@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playa Guide - Test Mode</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 0 auto 20px;
+    }
+    .controls h2 {
+      margin-top: 0;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button.secondary {
+      background: #6b7280;
+    }
+    button.secondary:hover {
+      background: #4b5563;
+    }
+    select {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-right: 10px;
+    }
+    .info {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h2>🗺️ Playa del Carmen Guide - Test Mode</h2>
+
+    <div class="info">
+      <strong>Test the widget with mock ChatGPT data.</strong>
+      Click buttons below to load different scenarios. The page will reload with test data.
+    </div>
+
+    <div class="button-group">
+      <button onclick="window.location.href='/?test=all'">Load All Places</button>
+      <button onclick="window.location.href='/?test=restaurants'">Load Restaurants</button>
+      <button onclick="window.location.href='/?test=beaches'">Load Beaches</button>
+      <button onclick="window.location.href='/?test=activities'">Load Activities</button>
+      <button onclick="window.location.href='/?test=error'">Test Error State</button>
+      <button class="secondary" onclick="window.location.href='/'">Clear Test Data</button>
+    </div>
+
+    <div>
+      <a href="/" style="color: #3b82f6; text-decoration: none;">← Back to normal mode</a>
+    </div>
+  </div>
+
+  <script>
+    // This page just provides buttons to navigate with query params
+    // The actual widget will detect these params and load test data
+  </script>
+</body>
+</html>
