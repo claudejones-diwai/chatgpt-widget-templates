@@ -1,105 +1,88 @@
-# Playa del Carmen Guide - Secrets Setup
+# Playa del Carmen Guide - Mapbox Setup
 
-## Mapbox Access Token Setup
+## Quick Start: 3 Simple Steps
 
-### Step 1: Create Mapbox Tokens
+### Step 1: Create Your Mapbox Token
 
 Go to [Mapbox Account > Access Tokens](https://account.mapbox.com/access-tokens/)
 
-**Create Token 1: Public Widget Token**
-1. Click "Create a token"
-2. Name: `Playa Guide Widget - Public`
-3. Scopes:
-   - ✅ Check **only** "Styles:Read"
-   - ❌ Uncheck everything else
-4. URL Restrictions:
-   - Add: `https://playa-guide-widget.pages.dev/*`
-   - Add: `http://localhost:5173/*` (for local development)
-5. Copy the token (starts with `pk.`)
+1. Click **"Create a token"**
+2. **Name:** `Playa Guide Widget`
+3. **Scopes:** Check **ONLY** "Styles:Read" (uncheck everything else)
+4. **URL Restrictions:**
+   - Add: `http://localhost:5173/*` (for testing locally)
+   - Add: `https://playa-guide-widget.pages.dev/*` (we'll deploy here later)
+5. **Copy the token** (starts with `pk.eyJ...`)
 
-**Optional - Token 2: Secret Server Token** (not currently needed)
-- For future backend API calls
-- No URL restrictions
-- Keep truly secret
-
----
-
-## Step 2: Local Development Setup
-
-### For Widget (React)
+### Step 2: Create Your Local .env File
 
 ```bash
 cd examples/playa-guide/widget-react
 
-# Create .env file from template
-cp ../.env.example .env
-
-# Edit .env and add your PUBLIC token:
-# VITE_MAPBOX_ACCESS_TOKEN=pk.your_actual_token_here
+# Create .env file with your token
+echo "VITE_MAPBOX_ACCESS_TOKEN=pk.your_actual_token_here" > .env
 ```
 
-### For MCP Server (optional - not currently needed)
+**Important:** Replace `pk.your_actual_token_here` with your real token!
+
+### Step 3: Test Locally
 
 ```bash
-cd examples/playa-guide/mcp-server
+# Install dependencies
+npm install
 
-# Create .dev.vars file from template
-cp .dev.vars.example .dev.vars
-
-# Edit .dev.vars if you need backend token:
-# MAPBOX_ACCESS_TOKEN=sk.your_secret_token_here
+# Start development server
+npm run dev
 ```
+
+Visit `http://localhost:5173` - you should see the widget with a map!
 
 ---
 
-## Step 3: Production Deployment
+## Production Deployment (After Local Testing)
 
-### Widget (Cloudflare Pages)
+When deploying to Cloudflare Pages, set the environment variable:
 
-After deploying the widget, set environment variable:
-
-**Option A: Via Cloudflare Dashboard**
-1. Go to Cloudflare Dashboard > Pages > playa-guide-widget
+**Via Cloudflare Dashboard:**
+1. Go to: Cloudflare Dashboard > Pages > playa-guide-widget
 2. Settings > Environment variables
-3. Add: `VITE_MAPBOX_ACCESS_TOKEN` = your public token
+3. Add variable:
+   - Name: `VITE_MAPBOX_ACCESS_TOKEN`
+   - Value: `pk.your_actual_token_here`
 
-**Option B: Via CLI**
+**Or via CLI:**
 ```bash
-cd examples/playa-guide/widget-react
 wrangler pages secret put VITE_MAPBOX_ACCESS_TOKEN
-# Paste your public token when prompted
-```
-
-### MCP Server (Cloudflare Workers)
-
-Only if you need backend Mapbox access:
-
-```bash
-cd examples/playa-guide/mcp-server
-wrangler secret put MAPBOX_ACCESS_TOKEN
-# Paste your secret token when prompted
+# Paste your token when prompted
 ```
 
 ---
 
-## Security Checklist
+## FAQ
 
-- ✅ `.env` and `.dev.vars` are in `.gitignore`
-- ✅ Never commit actual tokens to git
-- ✅ Public token is URL-restricted in Mapbox dashboard
-- ✅ Public token has minimal scopes (only "Styles:Read")
-- ✅ Secret tokens (if any) are set via `wrangler secret put`
-- ✅ `.env.example` files show format without actual secrets
+**Q: Do I need a credit card for Mapbox?**
+A: No! The free tier (50,000 map loads/month) is sufficient.
+
+**Q: Is my token safe if it's visible in browser code?**
+A: Yes! That's the design. You protected it by:
+- URL restrictions (only works on your domains)
+- Minimal scopes (only "Styles:Read")
+
+**Q: What about the MCP server - does it need Mapbox?**
+A: No! The server uses our curated dataset (28 places). No Mapbox API calls needed.
+
+**Q: The .env file doesn't exist - is that normal?**
+A: Yes! You create it yourself in Step 2. It's never committed to git (protected by .gitignore).
 
 ---
 
-## Current Setup Status
+## Troubleshooting
 
-**Widget Token**: ✅ Required (for map display)
-**Server Token**: ⚪ Optional (not currently used - we use curated data)
+**"Module not found: mapbox-gl"**
+→ Run: `npm install`
 
-The widget token will be visible in browser code, but that's OK because:
-1. It's restricted to your specific URLs
-2. It only has read permissions for map styles
-3. Mapbox expects public tokens to be client-side
-4. Anyone visiting your widget could see it anyway - that's the design
+**Map not loading, console shows 401 error**
+→ Check your token in `.env` file (must start with `pk.`)
+
+**Map loading but tiles are blank**
+→ Check URL restrictions in Mapbox dashboard include `http://localhost:5173/*`

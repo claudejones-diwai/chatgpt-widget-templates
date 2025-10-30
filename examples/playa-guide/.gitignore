@@ -2,12 +2,16 @@
 node_modules/
 package-lock.json
 
-# Build outputs
+# Build outputs - compiled TypeScript only
 dist/
-*.js
-*.js.map
-*.d.ts
-*.d.ts.map
+shared-types/*.js
+shared-types/*.js.map
+shared-types/*.d.ts
+shared-types/*.d.ts.map
+widget-react/src/**/*.js
+widget-react/src/**/*.js.map
+widget-react/src/**/*.d.ts
+widget-react/src/**/*.d.ts.map
 
 # Environment & secrets
 .env
