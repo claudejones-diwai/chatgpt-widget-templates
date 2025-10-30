@@ -20,7 +20,13 @@ export default function App() {
   const filteredPlaces = useMemo(() => {
     if (!toolData?.places) return [];
     if (activeCategory === "all") return toolData.places;
-    return toolData.places.filter((place) => place.category === activeCategory);
+
+    // Normalize category: handle both singular ("restaurant") and plural ("restaurants")
+    const normalizedActive = activeCategory.replace(/s$/, ""); // Remove trailing 's'
+    return toolData.places.filter((place) => {
+      const normalizedPlace = place.category.replace(/s$/, "");
+      return normalizedPlace === normalizedActive;
+    });
   }, [toolData?.places, activeCategory]);
 
   // Development mode - no tool data
