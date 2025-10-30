@@ -179,9 +179,20 @@ export default {
 
             case "resources/read":
               const requestedUri = body.params?.uri;
-              // Normalize URIs by removing trailing slashes for comparison
-              const normalizedRequested = requestedUri?.replace(/\/$/, "");
-              const normalizedWidget = WIDGET_URL.replace(/\/$/, "");
+              // Normalize URIs: parse and compare origin + pathname (ignore query params)
+              const parseUri = (uri: string) => {
+                try {
+                  const url = new URL(uri);
+                  // Remove trailing slash from pathname
+                  const pathname = url.pathname.replace(/\/$/, "") || "/";
+                  return `${url.origin}${pathname}`;
+                } catch {
+                  return uri?.replace(/\/$/, "");
+                }
+              };
+
+              const normalizedRequested = parseUri(requestedUri);
+              const normalizedWidget = parseUri(WIDGET_URL);
 
               if (normalizedRequested === normalizedWidget) {
                 try {
