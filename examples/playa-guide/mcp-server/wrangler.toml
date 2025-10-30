@@ -1,0 +1,9 @@
+name = "playa-guide-mcp-server"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[build]
+command = "npm run build"
+
+# Environment variables (secrets set via: wrangler secret put MAPBOX_ACCESS_TOKEN)
+# For local development, use .dev.vars file

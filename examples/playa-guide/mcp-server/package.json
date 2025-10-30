@@ -1,0 +1,22 @@
+{
+  "name": "playa-guide-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Playa del Carmen Guide widget",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["mcp", "cloudflare-workers", "playa-del-carmen", "chatgpt"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.45.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@playa-guide/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for Playa del Carmen Guide widget",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf *.js *.d.ts *.map"
+  },
+  "keywords": ["playa-del-carmen", "chatgpt", "widget", "types"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

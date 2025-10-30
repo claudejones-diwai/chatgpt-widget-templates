@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Cloudflare
+.wrangler/
+wrangler.toml.backup
