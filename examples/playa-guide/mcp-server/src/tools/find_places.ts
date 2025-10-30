@@ -30,16 +30,12 @@ export async function handleFindPlaces(
     const preferences = args.preferences || "";
     const limit = Math.min(args.limit || 10, 50); // Max 50 places
 
-    // Filter places
-    let filteredPlaces = preferences
-      ? getPlacesByPreference(preferences, category, limit)
-      : getPlacesByCategory(category, limit);
+    // Filter places by category ONLY (ignore preferences for now to return all results)
+    let filteredPlaces = getPlacesByCategory(category, limit);
 
     // If no results and category was specified, fallback to all categories
     if (filteredPlaces.length === 0 && category !== "all") {
-      filteredPlaces = preferences
-        ? getPlacesByPreference(preferences, "all", limit)
-        : PLACES.slice(0, limit);
+      filteredPlaces = PLACES.slice(0, limit);
     }
 
     return {
