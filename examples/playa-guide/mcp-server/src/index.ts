@@ -5,8 +5,9 @@ import { handleFindPlaces } from "./tools/find_places";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
 
-// Widget URL - will be updated after deploying to Cloudflare Pages
-const WIDGET_URL = "https://playa-guide-widget.pages.dev";
+// Widget URL with version for cache busting
+const WIDGET_VERSION = "1.0.3";
+const WIDGET_URL = `https://playa-guide-widget.pages.dev?v=${WIDGET_VERSION}`;
 
 // Cloudflare Worker environment interface
 export interface Env {
