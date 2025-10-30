@@ -1,5 +1,5 @@
 // Map Component - Mapbox GL map with place markers
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { Place } from "../../../shared-types";
 import { getCategoryColor } from "../utils/format";
@@ -17,7 +17,7 @@ interface MapProps {
 export function Map({ places = [], selectedPlace, onPlaceSelect, theme, centerCoordinates }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const markers = useRef(new globalThis.Map<string, mapboxgl.Marker>());
 
   // Initialize map
   useEffect(() => {
@@ -92,7 +92,7 @@ export function Map({ places = [], selectedPlace, onPlaceSelect, theme, centerCo
         duration: 1000,
       });
 
-      // Update marker appearance
+      // Update marker appearance by removing and recreating
       markers.current.forEach((marker, id) => {
         const place = places.find((p) => p.id === id);
         if (place) {
@@ -102,11 +102,17 @@ export function Map({ places = [], selectedPlace, onPlaceSelect, theme, centerCo
           newEl.addEventListener("click", () => {
             onPlaceSelect(place);
           });
-          marker.setElement(newEl);
+
+          // Remove old marker and create new one
+          marker.remove();
+          const newMarker = new mapboxgl.Marker(newEl)
+            .setLngLat([place.coordinates.lng, place.coordinates.lat])
+            .addTo(map.current!);
+          markers.current.set(id, newMarker);
         }
       });
     }
-  }, [selectedPlace]);
+  }, [selectedPlace, places, onPlaceSelect]);
 
   return (
     <div className="relative w-full h-full">
