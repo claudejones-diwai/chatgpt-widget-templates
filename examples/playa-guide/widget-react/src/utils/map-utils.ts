@@ -77,9 +77,10 @@ export function createMarkerElement(color: string, selected: boolean = false): H
  * Get map style URL based on theme
  */
 export function getMapStyle(theme: "light" | "dark" | null): string {
-  // Use Mapbox's built-in styles
+  // Use Mapbox's colorful street styles
   if (theme === "dark") {
     return "mapbox://styles/mapbox/dark-v11";
   }
-  return "mapbox://styles/mapbox/light-v11";
+  // Use streets style for colorful map like Pizzaz example
+  return "mapbox://styles/mapbox/streets-v12";
 }
