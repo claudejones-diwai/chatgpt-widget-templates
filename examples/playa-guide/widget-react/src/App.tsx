@@ -56,8 +56,10 @@ export default function App() {
   return (
     <div className={themeClass}>
       <div
-        style={{ maxHeight: maxHeight ?? undefined }}
-        className="bg-gray-50 dark:bg-gray-900 min-h-screen overflow-hidden"
+        style={{
+          height: maxHeight ? `${maxHeight}px` : '100vh',
+        }}
+        className="bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
@@ -83,10 +85,10 @@ export default function App() {
         <div
           className={`
             ${isPip ? "flex flex-col" : "flex flex-col md:flex-row"}
-            max-w-7xl mx-auto p-4 gap-4
+            max-w-7xl mx-auto p-4 gap-4 flex-1
           `}
           style={{
-            height: maxHeight ? `calc(${maxHeight}px - 180px)` : "calc(100vh - 180px)",
+            minHeight: 0, // Allow flex shrinking
           }}
         >
           {/* Map */}
