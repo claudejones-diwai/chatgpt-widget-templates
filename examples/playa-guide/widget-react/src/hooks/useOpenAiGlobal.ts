@@ -1,42 +1,35 @@
 // Hook to access window.openai global properties
-import { useState, useEffect } from "react";
+// Pattern from: https://github.com/openai/openai-apps-sdk-examples/blob/main/src/use-openai-global.ts
+import { useSyncExternalStore } from "react";
 
 type OpenAiKey = "theme" | "displayMode" | "maxHeight" | "toolOutput" | "widgetState" | "locale";
 
+const SET_GLOBALS_EVENT_TYPE = "openai:set_globals";
+
 export function useOpenAiGlobal<T = unknown>(key: OpenAiKey): T | null {
-  const [value, setValue] = useState<T | null>(() => {
-    if (typeof window !== "undefined" && window.openai) {
-      return (window.openai[key] as T) ?? null;
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    // Try to use subscribe if available
-    if (typeof window !== "undefined" && window.openai?.subscribe) {
-      return window.openai.subscribe(() => {
-        if (window.openai) {
-          setValue((window.openai[key] as T) ?? null);
-        }
-      });
-    }
-
-    // Fallback: poll for changes every 100ms
-    const interval = setInterval(() => {
-      if (typeof window !== "undefined" && window.openai) {
-        const newValue = (window.openai[key] as T) ?? null;
-        setValue((prev) => {
-          // Only update if value actually changed
-          if (JSON.stringify(prev) !== JSON.stringify(newValue)) {
-            return newValue;
-          }
-          return prev;
-        });
+  return useSyncExternalStore(
+    (onChange) => {
+      if (typeof window === "undefined") {
+        return () => {};
       }
-    }, 100);
 
-    return () => clearInterval(interval);
-  }, [key]);
+      const handleSetGlobal = (event: CustomEvent) => {
+        const value = event.detail?.globals?.[key];
+        if (value === undefined) {
+          return;
+        }
+        onChange();
+      };
 
-  return value;
+      window.addEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal as EventListener, {
+        passive: true,
+      });
+
+      return () => {
+        window.removeEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal as EventListener);
+      };
+    },
+    () => (typeof window !== "undefined" && window.openai ? (window.openai[key] as T) ?? null : null),
+    () => null // server snapshot
+  );
 }
