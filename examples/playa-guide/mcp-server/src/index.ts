@@ -6,7 +6,7 @@ import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
 
 // Widget URL with version for cache busting
-const WIDGET_VERSION = "1.0.4";
+const WIDGET_VERSION = "1.0.5";
 const WIDGET_URL = `https://playa-guide-widget.pages.dev?v=${WIDGET_VERSION}`;
 
 // Cloudflare Worker environment interface
