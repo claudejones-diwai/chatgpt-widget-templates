@@ -87,6 +87,7 @@ cp templates/WIDGET_SPEC.md my-widget/WIDGET_SPEC.md
 
 - **README.md** - Getting started guide
 - **WIDGET_SPEC.md** - Detailed specification
+- **MOBILE-SUPPORT.md** - Mobile platform status and known issues ⚠️
 - **docs/ARCHITECTURE.md** - Why separation matters
 - **docs/DEPLOYMENT.md** - Step-by-step deployment
 - **docs/CUSTOMIZATION.md** - How to customize

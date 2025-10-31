@@ -154,6 +154,13 @@ export default {
                       },
                       required: [],
                     },
+                    annotations: {
+                      title: "Playa del Carmen Guide",
+                      readOnlyHint: true,
+                      destructiveHint: false,
+                      idempotentHint: true,
+                      openWorldHint: false,
+                    },
                     _meta: {
                       "openai/outputTemplate": WIDGET_URL,
                     },
