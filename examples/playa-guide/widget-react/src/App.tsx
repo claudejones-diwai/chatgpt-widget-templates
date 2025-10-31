@@ -4,8 +4,8 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
-import { useTheme, useDisplayMode, useMaxHeight, useToolData } from "./hooks";
-import { Sidebar } from "./components";
+import { useTheme, useDisplayMode, useMaxHeight, useToolData, useWindowSize } from "./hooks";
+import { Sidebar, PlaceCard, BottomCard } from "./components";
 import { PlaceDetails } from "./components/PlaceDetails";
 import type { FindPlacesOutput, Place } from "../../shared-types";
 
@@ -88,6 +88,7 @@ export default function App() {
   const displayMode = useDisplayMode();
   const maxHeight = useMaxHeight() ?? undefined;
   const toolData = useToolData<FindPlacesOutput>();
+  const { isMobile } = useWindowSize();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -315,47 +316,100 @@ export default function App() {
       >
         <Outlet />
 
-        {/* Sidebar with carousel */}
-        <Sidebar
-          places={places}
-          selectedId={selectedId}
-          onSelect={(place) => {
-            navigate(`/place/${place.id}`);
-            panTo([place.coordinates.lng, place.coordinates.lat]);
-          }}
-        />
+        {/* MOBILE LAYOUT: Vertical stack with list + map */}
+        {isMobile ? (
+          <div className="flex flex-col h-full overflow-y-auto">
+            {/* List Section */}
+            <div className="px-4 py-4 space-y-0">
+              {/* Header */}
+              <div className="mb-4">
+                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {places.length} result{places.length !== 1 ? 's' : ''}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Scroll down to see map
+                </div>
+              </div>
 
-        {/* Inspector (place details) */}
-        <AnimatePresence>
-          {displayMode === "fullscreen" && selectedPlace && (
-            <div className="playa-inspector">
-              <PlaceDetails
-                key={selectedPlace.id}
-                place={selectedPlace}
-                onClose={() => navigate("..")}
+              {/* Place Cards */}
+              {places.map((place) => (
+                <PlaceCard
+                  key={place.id}
+                  place={place}
+                  isSelected={selectedId === place.id}
+                  onClick={() => {
+                    navigate(`/place/${place.id}`);
+                    panTo([place.coordinates.lng, place.coordinates.lat]);
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Map Section */}
+            <div className="h-[400px] w-full relative flex-shrink-0">
+              <div
+                ref={mapRef}
+                className="w-full h-full absolute inset-0"
+              />
+
+              {/* Bottom Card Overlay */}
+              <AnimatePresence>
+                {selectedPlace && (
+                  <BottomCard
+                    key={selectedPlace.id}
+                    place={selectedPlace}
+                    onClose={() => navigate(".")}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        ) : (
+          /* DESKTOP LAYOUT: Current sidebar + map */
+          <>
+            {/* Sidebar with carousel */}
+            <Sidebar
+              places={places}
+              selectedId={selectedId}
+              onSelect={(place) => {
+                navigate(`/place/${place.id}`);
+                panTo([place.coordinates.lng, place.coordinates.lat]);
+              }}
+            />
+
+            {/* Inspector (place details) */}
+            <AnimatePresence>
+              {displayMode === "fullscreen" && selectedPlace && (
+                <div className="playa-inspector">
+                  <PlaceDetails
+                    key={selectedPlace.id}
+                    place={selectedPlace}
+                    onClose={() => navigate("..")}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Map */}
+            <div
+              className={
+                "absolute inset-0 overflow-hidden" +
+                (displayMode === "fullscreen"
+                  ? " left-2 right-2 top-2 bottom-4 border border-gray-200 dark:border-gray-700 rounded-3xl"
+                  : "")
+              }
+            >
+              <div
+                ref={mapRef}
+                className="w-full h-full absolute bottom-0 left-0 right-0"
+                style={{
+                  maxHeight,
+                  height: displayMode === "fullscreen" ? maxHeight : undefined,
+                }}
               />
             </div>
-          )}
-        </AnimatePresence>
-
-        {/* Map */}
-        <div
-          className={
-            "absolute inset-0 overflow-hidden" +
-            (displayMode === "fullscreen"
-              ? " left-2 right-2 top-2 bottom-4 border border-gray-200 dark:border-gray-700 rounded-3xl"
-              : "")
-          }
-        >
-          <div
-            ref={mapRef}
-            className="w-full h-full absolute bottom-0 left-0 right-0"
-            style={{
-              maxHeight,
-              height: displayMode === "fullscreen" ? maxHeight : undefined,
-            }}
-          />
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
