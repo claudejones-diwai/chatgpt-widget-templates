@@ -20,8 +20,10 @@ export function handleInfo(widgetUrl: string): Response {
       url: widgetUrl,
       name: "Playa del Carmen Guide",
     },
-    protocol: "MCP (Model Context Protocol)",
-    version: "2025-06-18",
+    protocol: {
+      name: "MCP (Model Context Protocol)",
+      version: "2025-06-18",
+    },
   };
 
   return new Response(JSON.stringify(info, null, 2), {

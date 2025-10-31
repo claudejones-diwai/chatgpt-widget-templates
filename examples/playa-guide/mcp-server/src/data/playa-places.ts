@@ -21,6 +21,17 @@ export const PLACES: Place[] = [
     hours: "6:00 PM - 12:00 AM",
     highlights: ["Cave Dining", "Fine Dining", "Romantic", "Unique Experience"],
     website: "https://www.aluxrestaurant.com",
+    photos: [
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80", // Restaurant interior
+      "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80", // Fine dining plate
+      "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80", // Elegant restaurant
+    ],
+    amenities: ["Reservations Required", "Credit Cards", "Romantic Lighting", "Air Conditioning", "Bar", "Dress Code"],
+    openNow: true,
+    priceRange: "$40-$80 per person",
+    popularItems: ["Grilled Octopus", "Beef Tenderloin", "Chocolate Lava Cake"],
+    bestTimeToVisit: "Reserve for 7-8pm for best ambiance, avoid weekends if you prefer quieter dining",
+    phone: "+52 984 206 2713",
   },
   {
     id: "rest-002",
@@ -33,6 +44,17 @@ export const PLACES: Place[] = [
     priceLevel: 2,
     hours: "8:00 AM - 2:00 PM",
     highlights: ["Mexican Cuisine", "Garden Setting", "Breakfast", "Local Favorite"],
+    photos: [
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80", // Fresh food
+      "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=800&q=80", // Mexican breakfast
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80", // Restaurant outdoor
+    ],
+    amenities: ["Outdoor Seating", "Cash Only", "Garden", "Fresh Juices", "Vegetarian Options"],
+    openNow: false, // Closed (lunch only)
+    priceRange: "$8-$15 per person",
+    popularItems: ["Huevos Rancheros", "Fresh Juices", "Chilaquiles", "French Toast"],
+    bestTimeToVisit: "Arrive before 9am to avoid wait, closes at 2pm",
+    phone: "+52 984 147 0271",
   },
   {
     id: "rest-003",
@@ -45,6 +67,17 @@ export const PLACES: Place[] = [
     priceLevel: 1,
     hours: "6:00 PM - 2:00 AM",
     highlights: ["Tacos", "Street Food", "Budget-Friendly", "Local Favorite"],
+    photos: [
+      "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80", // Tacos
+      "https://images.unsplash.com/photo-1599974512764-134a32d48f7a?w=800&q=80", // Street tacos
+      "https://images.unsplash.com/photo-1624300629298-e9de39c13be5?w=800&q=80", // Taco close-up
+    ],
+    amenities: ["Outdoor Seating", "Cash Only", "Quick Service", "Late Night", "Takeout"],
+    openNow: true,
+    priceRange: "$1-$3 per taco",
+    popularItems: ["Tacos al Pastor", "Grilled Onions", "Salsa Verde", "Handmade Tortillas"],
+    bestTimeToVisit: "Best after 8pm when the pastor is perfectly cooked, expect lines but worth it",
+    phone: "+52 984 803 1621",
   },
   {
     id: "rest-004",
@@ -57,6 +90,17 @@ export const PLACES: Place[] = [
     priceLevel: 3,
     hours: "5:00 PM - 11:00 PM",
     highlights: ["Rooftop", "Cocktails", "Modern Mexican", "Nightlife"],
+    photos: [
+      "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&q=80", // Rooftop restaurant
+      "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80", // Cocktails
+      "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80", // Modern dining
+    ],
+    amenities: ["Rooftop Seating", "Bar", "Reservations", "Credit Cards", "Romantic", "Groups"],
+    openNow: true,
+    priceRange: "$25-$50 per person",
+    popularItems: ["Mezcal Cocktails", "Pork Belly Tacos", "Guacamole", "Churros"],
+    bestTimeToVisit: "Reserve for sunset (6-7pm), great for drinks before dinner elsewhere",
+    phone: "+52 984 803 5748",
   },
   {
     id: "rest-005",
@@ -67,7 +111,20 @@ export const PLACES: Place[] = [
     coordinates: { lat: 20.6304, lng: -87.0739 },
     rating: 4.5,
     priceLevel: 2,
+    hours: "8:00 AM - 10:00 PM",
     highlights: ["Venezuelan", "Vegetarian Friendly", "Casual", "Quick Service"],
+    photos: [
+      "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=800&q=80", // Arepas
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80", // Healthy food
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80", // Fresh salad
+    ],
+    amenities: ["Vegetarian Options", "Vegan Options", "Outdoor Seating", "Casual", "Takeout", "Quick Service"],
+    openNow: true,
+    priceRange: "$6-$12 per person",
+    popularItems: ["Reina Pepiada Arepa", "Pabellon Arepa", "Cachapa with Cheese"],
+    bestTimeToVisit: "Great for breakfast or lunch, less crowded before noon",
+    phone: "+52 984 803 5023",
+    website: "https://www.kaxapafactory.com",
   },
 
   // BEACHES
@@ -82,6 +139,17 @@ export const PLACES: Place[] = [
     priceLevel: 3,
     hours: "9:00 AM - 6:00 PM",
     highlights: ["Beach Club", "Water Sports", "Music", "Lively Atmosphere"],
+    photos: [
+      "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80", // Beach club
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80", // Caribbean beach
+      "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80", // Beach activities
+    ],
+    amenities: ["Beach Chairs", "Umbrellas", "Showers", "Lockers", "Bar", "Restaurant", "Water Sports Rentals", "WiFi"],
+    openNow: true,
+    priceRange: "$20-$40 per person (includes chair & umbrella)",
+    popularItems: ["Day Pass", "Ceviche", "Frozen Margaritas", "Paddle Board Rental"],
+    bestTimeToVisit: "Arrive before 11am for best spot selection, liveliest 1-4pm",
+    phone: "+52 984 803 2867",
   },
   {
     id: "beach-002",
@@ -92,7 +160,19 @@ export const PLACES: Place[] = [
     coordinates: { lat: 20.6175, lng: -87.0702 },
     rating: 4.7,
     priceLevel: 2,
+    hours: "Sunrise - Sunset",
     highlights: ["Family-Friendly", "Quiet", "White Sand", "Calm Waters"],
+    photos: [
+      "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=800&q=80", // Quiet beach
+      "https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80", // Tropical beach
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80", // Caribbean water
+    ],
+    amenities: ["Free Access", "Shade Areas", "Calm Waters", "Family Friendly", "Nearby Restaurants"],
+    openNow: true,
+    priceRange: "Free (public beach)",
+    popularItems: ["Swimming", "Sunbathing", "Beach Walks", "Snorkeling"],
+    bestTimeToVisit: "Morning for calmest water, less crowded than main beaches",
+    phone: "N/A",
   },
   {
     id: "beach-003",
@@ -103,7 +183,19 @@ export const PLACES: Place[] = [
     coordinates: { lat: 20.6405, lng: -87.0779 },
     rating: 4.6,
     priceLevel: 1,
+    hours: "Sunrise - Sunset",
     highlights: ["Cenote", "Free Beach", "Unique", "Natural Beauty"],
+    photos: [
+      "https://images.unsplash.com/photo-1520605993444-a58f0c1b9d72?w=800&q=80", // Hidden beach
+      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80", // Cenote
+      "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80", // Beach nature
+    ],
+    amenities: ["Free Access", "Cenote Swimming", "Natural Setting", "Snorkeling", "No Facilities"],
+    openNow: true,
+    priceRange: "Free",
+    popularItems: ["Cenote Swimming", "Exploring", "Photography"],
+    bestTimeToVisit: "Arrive early for best experience, bring snacks & water (no vendors)",
+    phone: "N/A",
   },
   {
     id: "beach-004",
@@ -114,7 +206,19 @@ export const PLACES: Place[] = [
     coordinates: { lat: 20.4654, lng: -87.1234 },
     rating: 4.8,
     priceLevel: 2,
+    hours: "8:00 AM - 6:00 PM",
     highlights: ["Snorkeling", "Crystal Clear Water", "Scenic", "Day Trip"],
+    photos: [
+      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80", // Clear water beach
+      "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=800&q=80", // Snorkeling
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80", // Caribbean beach
+    ],
+    amenities: ["Parking", "Beach Clubs", "Snorkel Gear Rental", "Restaurants", "Calm Waters"],
+    openNow: true,
+    priceRange: "$5-$10 parking, $20-$30 beach club access",
+    popularItems: ["Snorkeling", "Swimming", "Beach Relaxation"],
+    bestTimeToVisit: "Go early (before 11am) to avoid crowds, 30min drive south of PDC",
+    phone: "+52 984 873 2194",
   },
 
   // ACTIVITIES
@@ -129,6 +233,18 @@ export const PLACES: Place[] = [
     priceLevel: 2,
     hours: "8:00 AM - 5:00 PM",
     highlights: ["Cenote", "Snorkeling", "Swimming", "Nature"],
+    photos: [
+      "https://images.unsplash.com/photo-1564783384688-42d1e6063e26?w=800&q=80", // Cenote
+      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80", // Clear water
+      "https://images.unsplash.com/photo-1570541375773-49e679ec0a40?w=800&q=80", // Cave diving
+    ],
+    amenities: ["Snorkel Gear Rental", "Lockers", "Bathrooms", "Life Jackets", "Parking"],
+    openNow: true,
+    priceRange: "$15-$20 entrance + gear rental",
+    popularItems: ["Snorkeling", "Swimming", "Cave Photography"],
+    bestTimeToVisit: "Arrive at opening (8am) for clearest water, 45min from Playa",
+    phone: "+52 984 114 0003",
+    website: "https://www.grancenote.com",
   },
   {
     id: "activity-002",

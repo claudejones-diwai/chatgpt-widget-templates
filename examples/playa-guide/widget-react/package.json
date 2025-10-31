@@ -11,9 +11,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.548.0",
     "mapbox-gl": "^3.7.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
     "@types/mapbox-gl": "^3.4.0",
@@ -27,7 +31,13 @@
     "vite": "^6.0.1",
     "wrangler": "^4.45.0"
   },
-  "keywords": ["playa-del-carmen", "mapbox", "chatgpt", "widget", "travel"],
+  "keywords": [
+    "playa-del-carmen",
+    "mapbox",
+    "chatgpt",
+    "widget",
+    "travel"
+  ],
   "author": "",
   "license": "MIT"
 }

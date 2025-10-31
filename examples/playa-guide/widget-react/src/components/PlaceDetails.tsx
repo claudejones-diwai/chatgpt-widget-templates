@@ -1,6 +1,7 @@
-// Place Details Component - Shows full details of selected place
+// Place Details Component - Inspector pattern from Pizzaz
+import { motion } from "framer-motion";
+import { Star, X } from "lucide-react";
 import type { Place } from "../../../shared-types";
-import { formatPriceLevel, formatRating, getCategoryColor, formatCategory } from "../utils/format";
 
 interface PlaceDetailsProps {
   place: Place;
@@ -8,128 +9,116 @@ interface PlaceDetailsProps {
 }
 
 export function PlaceDetails({ place, onClose }: PlaceDetailsProps) {
-  const colors = getCategoryColor(place.category);
+  if (!place) return null;
+
+  // Format price level as dollar signs
+  const priceDisplay = place.priceLevel
+    ? "$".repeat(place.priceLevel)
+    : null;
 
   const handleGetDirections = async () => {
-    await window.openai?.sendFollowUpMessage({
-      prompt: `How do I get to ${place.name} in Playa del Carmen?`,
-    });
+    if (window.openai?.sendFollowUpMessage) {
+      await window.openai.sendFollowUpMessage({
+        prompt: `How do I get to ${place.name} in Playa del Carmen?`,
+      });
+    }
   };
 
   const handleFindSimilar = async () => {
-    await window.openai?.sendFollowUpMessage({
-      prompt: `Show me more places like ${place.name}`,
-    });
+    if (window.openai?.sendFollowUpMessage) {
+      await window.openai.sendFollowUpMessage({
+        prompt: `Show me more places like ${place.name}`,
+      });
+    }
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md">
-      {/* Header with close button */}
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}>
-              {formatCategory(place.category)}
-            </span>
+    <motion.div
+      key={place.id}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ type: "spring", bounce: 0, duration: 0.25 }}
+      className="absolute z-30 top-0 bottom-4 left-0 right-auto xl:left-auto xl:right-6 md:z-20 w-[340px] xl:w-[360px] xl:top-6 xl:bottom-8 pointer-events-auto"
+    >
+      <button
+        aria-label="Close details"
+        className="inline-flex absolute z-10 top-4 left-4 xl:top-4 xl:left-4 shadow-xl rounded-full p-2 bg-white dark:bg-gray-800 ring ring-black/10 dark:ring-white/10 xl:shadow-2xl hover:bg-gray-50 dark:hover:bg-gray-700"
+        onClick={onClose}
+      >
+        <X className="h-[18px] w-[18px] text-gray-900 dark:text-gray-100" aria-hidden="true" />
+      </button>
+      <div className="relative h-full overflow-y-auto rounded-none xl:rounded-3xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 xl:shadow-xl xl:ring ring-black/10 dark:ring-white/10">
+        {place.imageUrl && (
+          <div className="relative mt-2 xl:mt-0 px-2 xl:px-0">
+            <img
+              src={place.imageUrl}
+              alt={place.name}
+              className="w-full rounded-3xl xl:rounded-none h-80 object-cover xl:rounded-t-2xl"
+            />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {place.name}
-          </h3>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none"
-          aria-label="Close"
-        >
-          ×
-        </button>
-      </div>
+        )}
 
-      {/* Rating and Price */}
-      {(place.rating || place.priceLevel) && (
-        <div className="flex items-center gap-4 mb-4">
-          {place.rating && (
-            <div className="flex items-center gap-2">
-              <span className="text-yellow-500 text-lg">{formatRating(place.rating)}</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{place.rating}</span>
+        <div className="h-[calc(100%-11rem)] sm:h-[calc(100%-14rem)]">
+          <div className="p-4 sm:p-5">
+            <div className="text-2xl font-medium truncate">{place.name}</div>
+            <div className="text-sm mt-1 text-gray-600 dark:text-gray-400 flex items-center gap-1">
+              {place.rating && (
+                <>
+                  <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                  {place.rating.toFixed(1)}
+                </>
+              )}
+              {place.rating && priceDisplay && <span>·</span>}
+              {priceDisplay && <span>{priceDisplay}</span>}
+              <span>· Playa del Carmen</span>
+            </div>
+            <div className="mt-3 flex flex-row items-center gap-3 font-medium text-sm">
+              <button
+                onClick={handleGetDirections}
+                className="rounded-full bg-[#F46C21] text-white cursor-pointer px-4 py-1.5 hover:bg-[#e35b10] transition-colors"
+              >
+                Get Directions
+              </button>
+              <button
+                onClick={handleFindSimilar}
+                className="rounded-full border border-[#F46C21]/50 text-[#F46C21] cursor-pointer px-4 py-1.5 hover:bg-[#F46C21]/10 transition-colors"
+              >
+                Find Similar
+              </button>
+            </div>
+            <div className="text-sm mt-5 text-gray-700 dark:text-gray-300">
+              {place.description}
+            </div>
+            {place.address && (
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                📍 {place.address}
+              </div>
+            )}
+            {place.hours && (
+              <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                🕐 {place.hours}
+              </div>
+            )}
+          </div>
+
+          {place.highlights && place.highlights.length > 0 && (
+            <div className="px-4 sm:px-5 pb-4">
+              <div className="text-lg font-medium mb-2">Highlights</div>
+              <div className="flex flex-wrap gap-2">
+                {place.highlights.map((highlight, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
+                  >
+                    {highlight}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
-          {place.priceLevel && (
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {formatPriceLevel(place.priceLevel)}
-            </span>
-          )}
         </div>
-      )}
-
-      {/* Description */}
-      <p className="text-gray-700 dark:text-gray-300 mb-4">{place.description}</p>
-
-      {/* Highlights */}
-      {place.highlights && place.highlights.length > 0 && (
-        <div className="mb-4">
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Highlights</h4>
-          <div className="flex flex-wrap gap-2">
-            {place.highlights.map((highlight, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
-              >
-                {highlight}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Details */}
-      <div className="space-y-2 mb-6 text-sm">
-        <div className="flex items-start gap-2">
-          <span className="text-gray-500 dark:text-gray-400">📍</span>
-          <span className="text-gray-700 dark:text-gray-300">{place.address}</span>
-        </div>
-        {place.hours && (
-          <div className="flex items-start gap-2">
-            <span className="text-gray-500 dark:text-gray-400">🕐</span>
-            <span className="text-gray-700 dark:text-gray-300">{place.hours}</span>
-          </div>
-        )}
-        {place.phone && (
-          <div className="flex items-start gap-2">
-            <span className="text-gray-500 dark:text-gray-400">📞</span>
-            <span className="text-gray-700 dark:text-gray-300">{place.phone}</span>
-          </div>
-        )}
-        {place.website && (
-          <div className="flex items-start gap-2">
-            <span className="text-gray-500 dark:text-gray-400">🌐</span>
-            <a
-              href={place.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-600 dark:text-primary-400 hover:underline"
-            >
-              Visit Website
-            </a>
-          </div>
-        )}
       </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={handleGetDirections}
-          className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-        >
-          Get Directions
-        </button>
-        <button
-          onClick={handleFindSimilar}
-          className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-        >
-          Find Similar
-        </button>
-      </div>
-    </div>
+    </motion.div>
   );
 }

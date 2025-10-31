@@ -13,6 +13,17 @@ export interface Place {
   priceLevel?: number; // 1-4 ($-$$$$)
   hours?: string;
   highlights?: string[]; // ["Beachfront", "Live Music", "Vegan Options"]
+
+  // Enhanced fields for rich UI
+  photos?: string[]; // Array of image URLs
+  amenities?: string[]; // ["WiFi", "Parking", "Outdoor Seating", "Wheelchair Accessible"]
+  openNow?: boolean; // Whether currently open
+  priceRange?: string; // Human-readable: "$20-$40 per person"
+  distance?: number; // Distance from user in km (calculated on frontend)
+  popularItems?: string[]; // Popular dishes/activities
+  bestTimeToVisit?: string; // "Quieter before 7pm", "Best at sunset"
+
+  // Existing fields
   imageUrl?: string;
   website?: string;
   phone?: string;

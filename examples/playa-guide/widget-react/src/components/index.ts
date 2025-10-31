@@ -5,3 +5,4 @@ export { FilterBar } from "./FilterBar";
 export { PlaceList } from "./PlaceList";
 export { PlaceDetails } from "./PlaceDetails";
 export { Map } from "./Map";
+export { default as Sidebar } from "./Sidebar";

@@ -5,9 +5,8 @@ import { handleFindPlaces } from "./tools/find_places";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
 
-// Widget URL with version for cache busting
-const WIDGET_VERSION = "1.0.6";
-const WIDGET_URL = `https://playa-guide-widget.pages.dev?v=${WIDGET_VERSION}`;
+// Widget URL - Vite builds with content-hashed assets for cache busting
+const WIDGET_URL = "https://6087d1bf.playa-guide-widget.pages.dev";
 
 // Cloudflare Worker environment interface
 export interface Env {
