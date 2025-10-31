@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Cloudflare
+.wrangler/
+wrangler.toml.backup
