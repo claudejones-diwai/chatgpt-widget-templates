@@ -134,7 +134,7 @@ export default {
                     },
                     annotations: {
                       title: "Email Composer",
-                      readOnlyHint: false, // User can edit email
+                      readOnlyHint: true, // Tool opens composer UI, doesn't send email
                       destructiveHint: false,
                       idempotentHint: true,
                       openWorldHint: false,
