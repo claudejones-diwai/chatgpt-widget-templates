@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs - compiled TypeScript only
+dist/
+shared-types/*.js
+shared-types/*.js.map
+shared-types/*.d.ts
+shared-types/*.d.ts.map
+widget-react/src/**/*.js
+widget-react/src/**/*.js.map
+widget-react/src/**/*.d.ts
+widget-react/src/**/*.d.ts.map
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Cloudflare
+.wrangler/
+wrangler.toml.backup
