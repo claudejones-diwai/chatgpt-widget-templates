@@ -1,0 +1,7 @@
+import { useOpenAiGlobal } from "./useOpenAiGlobal";
+
+export type Theme = "light" | "dark";
+
+export function useTheme(): Theme | null {
+  return useOpenAiGlobal<Theme>("theme");
+}
