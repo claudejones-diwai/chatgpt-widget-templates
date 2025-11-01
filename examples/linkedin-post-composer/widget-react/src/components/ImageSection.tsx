@@ -32,7 +32,7 @@ export function ImageSection({
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [hasAcknowledgedImage, setHasAcknowledgedImage] = useState(false);
+  const [acknowledgedImageUrl, setAcknowledgedImageUrl] = useState<string | undefined>();
   const [wasGenerating, setWasGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,17 +43,10 @@ export function ImageSection({
     }
   }, [suggestedPrompt, image?.prompt]);
 
-  // Reset acknowledgment when new image is added
-  useEffect(() => {
-    if (image?.url) {
-      setHasAcknowledgedImage(false);
-    }
-  }, [image?.url]);
-
-  // Mark as acknowledged when switching to preview tab
+  // Auto-acknowledge when switching to preview tab
   useEffect(() => {
     if (!showImageStatus && image?.url) {
-      setHasAcknowledgedImage(true);
+      setAcknowledgedImageUrl(image.url);
     }
   }, [showImageStatus, image?.url]);
 
@@ -70,14 +63,21 @@ export function ImageSection({
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
+      // Acknowledge current image before generating new one
+      setAcknowledgedImageUrl(image?.url);
       onGenerateImage(imagePrompt.trim());
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
+    // Acknowledge current image before uploading new one
+    setAcknowledgedImageUrl(image?.url);
     fileInputRef.current?.click();
   };
+
+  // Determine if we should show the notification
+  const shouldShowNotification = image?.url && image.url !== acknowledgedImageUrl && showImageStatus && !showPromptEditor;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -135,7 +135,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {image?.url && showImageStatus && !showPromptEditor && !hasAcknowledgedImage && (
+      {shouldShowNotification && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
