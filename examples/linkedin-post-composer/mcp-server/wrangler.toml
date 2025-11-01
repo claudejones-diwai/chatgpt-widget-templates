@@ -1,0 +1,6 @@
+name = "linkedin-post-composer-mcp"
+main = "dist/mcp-server/src/index.js"
+compatibility_date = "2025-01-27"
+
+[build]
+command = "npm run build"
