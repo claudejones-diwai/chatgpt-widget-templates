@@ -101,20 +101,20 @@ export function ImageSection({
         </div>
       )}
 
-      {/* Image Preview (if exists) */}
+      {/* Image Status Indicator */}
       {image?.url && (
-        <div className="relative group">
-          <img
-            src={image.url}
-            alt="Post image"
-            className="w-full max-h-96 object-contain rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900"
-          />
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+              Image added • View in Preview tab
+            </span>
+          </div>
           <button
             onClick={onRemoveImage}
-            className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-90 group-hover:opacity-100"
-            title="Remove image"
+            className="text-sm text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 underline"
           >
-            <X className="w-4 h-4" />
+            Remove
           </button>
         </div>
       )}
