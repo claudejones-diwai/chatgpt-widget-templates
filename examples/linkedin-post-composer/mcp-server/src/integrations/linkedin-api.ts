@@ -63,9 +63,25 @@ export async function generateImage(
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1500));
 
+  // Return a data URL SVG placeholder (no CORS issues)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+    <rect width="1024" height="1024" fill="#0A66C2"/>
+    <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="48" font-family="Arial, sans-serif" font-weight="bold">
+      AI Generated Image
+    </text>
+    <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="24" font-family="Arial, sans-serif" opacity="0.8">
+      Phase 1 Placeholder
+    </text>
+    <text x="50%" y="63%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="18" font-family="Arial, sans-serif" opacity="0.6">
+      ${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}
+    </text>
+  </svg>`;
+
+  const imageUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+
   return {
     success: true,
-    imageUrl: 'https://via.placeholder.com/1024x1024/0A66C2/ffffff?text=AI+Generated+Image',
+    imageUrl,
     imageKey: `linkedin-posts/${Date.now()}-generated.png`
   };
 }
@@ -88,9 +104,10 @@ export async function uploadImage(
   // Simulate upload delay
   await new Promise(resolve => setTimeout(resolve, 800));
 
+  // For Phase 1, return the data URL directly (actual upload happens in Phase 2)
   return {
     success: true,
-    imageUrl: 'https://via.placeholder.com/1024x1024/0A66C2/ffffff?text=Uploaded+Image',
+    imageUrl: imageData, // Return the data URL for immediate preview
     imageKey: `linkedin-posts/${Date.now()}-${filename}`
   };
 }

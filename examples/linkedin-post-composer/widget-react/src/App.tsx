@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { X, Edit3, Eye } from "lucide-react";
+import { X, Edit3, Eye, Send } from "lucide-react";
 import { useTheme, useToolData, useServerAction } from "./hooks";
 import { AccountSelector } from "./components/AccountSelector";
 import { ContentEditor } from "./components/ContentEditor";
 import { ImageSection } from "./components/ImageSection";
 import { PostPreview } from "./components/PostPreview";
-import { ActionButtons } from "./components/ActionButtons";
 import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput } from "../../shared-types";
 
 type ViewMode = 'edit' | 'preview';
@@ -241,13 +240,117 @@ export default function App() {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <ActionButtons
-            onPublish={handlePublish}
-            isPublishing={publishPost.loading}
-            canPublish={canPublish}
-            publishResult={publishPost.result || undefined}
-          />
+          {/* Action Buttons - Different for Edit vs Preview */}
+          {publishPost.result?.success ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                      Published successfully!
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1 whitespace-pre-wrap">
+                      {publishPost.result.message}
+                    </p>
+                    {publishPost.result.postUrl && (
+                      <a
+                        href={publishPost.result.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      >
+                        View Post on LinkedIn
+                        <Eye className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : publishPost.result && !publishPost.result.success ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-red-900 dark:text-red-100">
+                      Failed to publish
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      {publishPost.result.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleClose}
+                  className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={!canPublish}
+                  className="flex-1 px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          ) : viewMode === 'edit' ? (
+            <div className="flex gap-3">
+              <button
+                onClick={handleClose}
+                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setViewMode('preview')}
+                className="flex-1 px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 font-medium"
+              >
+                <Eye className="w-5 h-5" />
+                See Preview
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                onClick={() => setViewMode('edit')}
+                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
+              >
+                <Edit3 className="w-4 h-4" />
+                Back
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={!canPublish || publishPost.loading}
+                className="flex-1 px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
+              >
+                {publishPost.loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Publishing to LinkedIn...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    Publish to LinkedIn
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Phase 1 Notice */}
           <div className="text-center">

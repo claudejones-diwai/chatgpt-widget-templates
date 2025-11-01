@@ -132,22 +132,31 @@ export function ImageSection({
             />
             <button
               onClick={handleUploadClick}
-              className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+              disabled={isGenerating}
+              className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload className="w-4 h-4" />
               {image ? 'Replace Image' : 'Upload Image'}
             </button>
             <button
               onClick={() => setShowPromptEditor(true)}
-              className="flex-1 px-4 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+              disabled={isGenerating}
+              className="flex-1 px-4 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
               Generate with AI
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Supported: JPG, PNG • Max size: 10MB
-          </p>
+          {isGenerating ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-linkedin-600 dark:text-linkedin-400">
+              <div className="w-4 h-4 border-2 border-linkedin-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="font-medium">Generating image...</span>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              Supported: JPG, PNG • Max size: 10MB
+            </p>
+          )}
         </>
       )}
 
