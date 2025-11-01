@@ -32,8 +32,8 @@ export function ImageSection({
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [acknowledgedImageUrl, setAcknowledgedImageUrl] = useState<string | undefined>();
-  const [wasGenerating, setWasGenerating] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [lastImageUrl, setLastImageUrl] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -43,41 +43,33 @@ export function ImageSection({
     }
   }, [suggestedPrompt, image?.prompt]);
 
-  // Auto-acknowledge when switching to preview tab
+  // Reset dismissed when new image appears
   useEffect(() => {
-    if (!showImageStatus && image?.url) {
-      setAcknowledgedImageUrl(image.url);
+    if (image?.url && image.url !== lastImageUrl) {
+      setDismissed(false);
+      setLastImageUrl(image.url);
     }
-  }, [showImageStatus, image?.url]);
+  }, [image?.url, lastImageUrl]);
 
-  // Auto-close prompt editor when image generation completes
+  // Dismiss when switching to preview tab
   useEffect(() => {
-    if (isGenerating) {
-      setWasGenerating(true);
-    } else if (wasGenerating && image?.url) {
-      // Generation just completed - close the editor to show notification
-      setShowPromptEditor(false);
-      setWasGenerating(false);
+    if (!showImageStatus) {
+      setDismissed(true);
     }
-  }, [isGenerating, image?.url, wasGenerating]);
+  }, [showImageStatus]);
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
-      // Acknowledge current image before generating new one
-      setAcknowledgedImageUrl(image?.url);
+      setDismissed(true);
       onGenerateImage(imagePrompt.trim());
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
-    // Acknowledge current image before uploading new one
-    setAcknowledgedImageUrl(image?.url);
+    setDismissed(true);
     fileInputRef.current?.click();
   };
-
-  // Determine if we should show the notification
-  const shouldShowNotification = image?.url && image.url !== acknowledgedImageUrl && showImageStatus && !showPromptEditor;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -135,7 +127,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {shouldShowNotification && (
+      {image?.url && !dismissed && showImageStatus && !showPromptEditor && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
