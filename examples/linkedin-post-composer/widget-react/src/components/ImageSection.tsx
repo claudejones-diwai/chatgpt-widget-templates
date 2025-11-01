@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, Sparkles, X, AlertCircle } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { validateFile, readFileAsDataURL } from "../utils/fileValidation";
@@ -32,24 +32,41 @@ export function ImageSection({
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [hasAcknowledgedImage, setHasAcknowledgedImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
-  useState(() => {
+  useEffect(() => {
     if (suggestedPrompt && !image?.prompt) {
       setImagePrompt(suggestedPrompt);
     }
-  });
+  }, [suggestedPrompt, image?.prompt]);
+
+  // Reset acknowledgment when new image is added
+  useEffect(() => {
+    if (image?.url) {
+      setHasAcknowledgedImage(false);
+    }
+  }, [image?.url]);
+
+  // Mark as acknowledged when switching to preview tab
+  useEffect(() => {
+    if (!showImageStatus && image?.url) {
+      setHasAcknowledgedImage(true);
+    }
+  }, [showImageStatus, image?.url]);
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
       onGenerateImage(imagePrompt.trim());
+      setHasAcknowledgedImage(true); // Mark as acknowledged when regenerating
       // Keep prompt editor open so user can modify/regenerate
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
+    setHasAcknowledgedImage(true); // Mark as acknowledged when uploading
     fileInputRef.current?.click();
   };
 
@@ -109,7 +126,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {image?.url && showImageStatus && !showPromptEditor && (
+      {image?.url && showImageStatus && !showPromptEditor && !hasAcknowledgedImage && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
