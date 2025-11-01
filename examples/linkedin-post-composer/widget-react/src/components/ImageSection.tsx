@@ -191,10 +191,7 @@ export function ImageSection({
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                setShowPromptEditor(false);
-                setImagePrompt("");
-              }}
+              onClick={() => setShowPromptEditor(false)}
               className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               Cancel
