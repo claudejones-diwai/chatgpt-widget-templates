@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Sparkles, X, RefreshCw, AlertCircle } from "lucide-react";
+import { Upload, Sparkles, X, AlertCircle } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { validateFile, readFileAsDataURL } from "../utils/fileValidation";
 
@@ -42,12 +42,6 @@ export function ImageSection({
     if (imagePrompt.trim().length >= 10) {
       onGenerateImage(imagePrompt.trim());
       setShowPromptEditor(false);
-    }
-  };
-
-  const handleRegenerate = () => {
-    if (imagePrompt.trim().length >= 10) {
-      onGenerateImage(imagePrompt.trim());
     }
   };
 
@@ -107,8 +101,26 @@ export function ImageSection({
         </div>
       )}
 
-      {/* Action Buttons */}
-      {!image && !showPromptEditor && (
+      {/* Image Preview (if exists) */}
+      {image?.url && (
+        <div className="relative group">
+          <img
+            src={image.url}
+            alt="Post image"
+            className="w-full max-h-96 object-contain rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900"
+          />
+          <button
+            onClick={onRemoveImage}
+            className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-90 group-hover:opacity-100"
+            title="Remove image"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Action Buttons - Always visible */}
+      {!showPromptEditor && (
         <>
           <div className="flex gap-2">
             <input
@@ -123,7 +135,7 @@ export function ImageSection({
               className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
             >
               <Upload className="w-4 h-4" />
-              Upload Image
+              {image ? 'Replace Image' : 'Upload Image'}
             </button>
             <button
               onClick={() => setShowPromptEditor(true)}
@@ -140,7 +152,7 @@ export function ImageSection({
       )}
 
       {/* Prompt Editor */}
-      {showPromptEditor && !image && (
+      {showPromptEditor && (
         <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Describe the image you want to generate
@@ -178,7 +190,7 @@ export function ImageSection({
             >
               {isGenerating ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <Sparkles className="w-4 h-4 animate-pulse" />
                   Generating...
                 </>
               ) : (
@@ -189,57 +201,6 @@ export function ImageSection({
               )}
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Image Preview */}
-      {image?.url && (
-        <div className="space-y-3">
-          <div className="relative group">
-            <img
-              src={image.url}
-              alt="Post image"
-              className="w-full max-h-96 object-contain rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900"
-            />
-            <button
-              onClick={onRemoveImage}
-              className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-90 group-hover:opacity-100"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {image.source === 'ai-generate' && image.prompt && (
-            <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                Image Prompt (editable)
-              </label>
-              <TextareaAutosize
-                value={imagePrompt || image.prompt}
-                onChange={(e) => setImagePrompt(e.target.value)}
-                minRows={2}
-                maxRows={4}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-linkedin-500 dark:focus:ring-linkedin-400 text-sm"
-              />
-              <button
-                onClick={handleRegenerate}
-                disabled={imagePrompt.trim().length < 10 || isGenerating}
-                className="w-full px-4 py-2 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Regenerating...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Regenerate Image
-                  </>
-                )}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
