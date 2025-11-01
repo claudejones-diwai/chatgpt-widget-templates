@@ -71,11 +71,11 @@ export function PostPreview({ accountName, content, imageUrl }: PostPreviewProps
         {/* Post Image */}
         {imageUrl && (
           <div className="border-t border-gray-200 dark:border-gray-700">
-            <div className="w-full h-96 bg-gray-100 dark:bg-gray-800">
+            <div className="w-full h-96 bg-gray-100 dark:bg-gray-800 overflow-hidden">
               <img
                 src={imageUrl}
                 alt="Post content"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
           </div>

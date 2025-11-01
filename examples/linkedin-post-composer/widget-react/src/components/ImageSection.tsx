@@ -109,7 +109,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {image?.url && showImageStatus && (
+      {image?.url && showImageStatus && !showPromptEditor && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -192,14 +192,14 @@ export function ImageSection({
           <div className="flex gap-2">
             <button
               onClick={() => setShowPromptEditor(false)}
-              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleGenerate}
               disabled={imagePrompt.trim().length < 10 || isGenerating}
-              className="flex-1 px-4 py-2 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+              className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-medium"
             >
               {isGenerating ? (
                 <>
