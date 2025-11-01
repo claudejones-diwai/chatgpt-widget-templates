@@ -28,6 +28,9 @@ export interface ComposeLinkedInPostOutput {
     prompt?: string;            // Editable AI generation prompt
   };
 
+  // Suggested image prompt from ChatGPT (for initial AI generation)
+  suggestedImagePrompt?: string;
+
   // Future media types (Phase 2+)
   carousel?: {
     images: { url: string; alt?: string }[];

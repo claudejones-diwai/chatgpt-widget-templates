@@ -30,7 +30,8 @@ export default function App() {
     if (toolData) {
       setContent(toolData.content || "");
       setSelectedAccountId(toolData.selectedAccountId || toolData.accounts.personal.id);
-      if (toolData.image) {
+      // Only set image if there's an actual URL (not just a suggested prompt)
+      if (toolData.image?.url) {
         setCurrentImage(toolData.image);
       }
     }
@@ -128,8 +129,9 @@ export default function App() {
             </div>
             <button
               onClick={handleClose}
-              className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="absolute top-0 right-0 p-2.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 rounded-full transition-all shadow-sm hover:shadow-md"
               title="Close"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -218,7 +220,7 @@ export default function App() {
                 <ImageSection
                   image={currentImage}
                   postType={toolData.postType}
-                  suggestedPrompt={toolData.image?.prompt}
+                  suggestedPrompt={toolData.suggestedImagePrompt}
                   onGenerateImage={handleGenerateImage}
                   onUploadImage={handleUploadImage}
                   onRemoveImage={() => setCurrentImage(undefined)}

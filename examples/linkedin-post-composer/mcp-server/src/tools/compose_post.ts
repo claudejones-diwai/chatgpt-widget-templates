@@ -35,13 +35,18 @@ export async function handleComposePost(params: ComposePostParams): Promise<Comp
     }
   };
 
-  // Handle image if postType is 'image'
-  if (postType === 'image' && imageSource) {
+  // Only create image object if we have an actual image URL
+  // For ai-generate, pass suggestedImagePrompt separately so buttons show
+  if (postType === 'image' && imageSource === 'url' && imageUrl) {
     output.image = {
-      source: imageSource,
-      url: imageSource === 'url' ? imageUrl : undefined,
-      prompt: imageSource === 'ai-generate' ? suggestedImagePrompt : undefined
+      source: 'url',
+      url: imageUrl
     };
+  }
+
+  // Pass suggested prompt separately (not as part of image object)
+  if (suggestedImagePrompt) {
+    output.suggestedImagePrompt = suggestedImagePrompt;
   }
 
   return output;
