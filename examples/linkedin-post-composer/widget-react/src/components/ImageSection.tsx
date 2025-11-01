@@ -33,8 +33,8 @@ export function ImageSection({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [lastImageUrl, setLastImageUrl] = useState<string | undefined>();
   const [wasGenerating, setWasGenerating] = useState(false);
+  const [wasUploading, setWasUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -44,27 +44,32 @@ export function ImageSection({
     }
   }, [suggestedPrompt, image?.prompt]);
 
-  // Track generation state to close editor when done
+  // Track upload state - show toast when upload completes
   useEffect(() => {
-    if (isGenerating) {
-      setWasGenerating(true);
-    } else if (wasGenerating && image?.url) {
-      // Generation complete - close editor
-      setShowPromptEditor(false);
-      setWasGenerating(false);
-    }
-  }, [isGenerating, image?.url, wasGenerating]);
-
-  // Show toast when new image appears
-  useEffect(() => {
-    if (image?.url && image.url !== lastImageUrl) {
-      setLastImageUrl(image.url);
+    if (isUploadingFile) {
+      setWasUploading(true);
+    } else if (wasUploading) {
+      // Upload complete - show toast
+      setWasUploading(false);
       setShowToast(true);
-      // Auto-dismiss after 3 seconds
       const timer = setTimeout(() => setShowToast(false), 3000);
       return () => clearTimeout(timer);
     }
-  }, [image?.url, lastImageUrl]);
+  }, [isUploadingFile, wasUploading]);
+
+  // Track generation state - show toast and close editor when generation completes
+  useEffect(() => {
+    if (isGenerating) {
+      setWasGenerating(true);
+    } else if (wasGenerating) {
+      // Generation complete - close editor and show toast
+      setWasGenerating(false);
+      setShowPromptEditor(false);
+      setShowToast(true);
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isGenerating, wasGenerating]);
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
@@ -134,12 +139,12 @@ export function ImageSection({
 
       {/* Toast Notification */}
       {showToast && showImageStatus && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ease-in-out">
-          <div className="px-4 py-3 bg-green-600 dark:bg-green-700 text-white rounded-lg shadow-lg flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 transition-all duration-300 ease-in-out">
+          <div className="px-6 py-4 bg-green-600 dark:bg-green-700 text-white rounded-lg shadow-lg flex items-center gap-3">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span className="text-sm font-medium">
+            <span className="text-base font-medium">
               Image added! Click Preview to see it
             </span>
           </div>
