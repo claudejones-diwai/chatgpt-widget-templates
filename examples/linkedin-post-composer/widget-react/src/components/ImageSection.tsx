@@ -15,6 +15,7 @@ interface ImageSectionProps {
   onUploadImage: (file: File, dataUrl: string) => void;
   onRemoveImage: () => void;
   isGenerating: boolean;
+  showImageStatus?: boolean;
 }
 
 export function ImageSection({
@@ -24,11 +25,13 @@ export function ImageSection({
   onGenerateImage,
   onUploadImage,
   onRemoveImage,
-  isGenerating
+  isGenerating,
+  showImageStatus = true
 }: ImageSectionProps) {
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -41,7 +44,7 @@ export function ImageSection({
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
       onGenerateImage(imagePrompt.trim());
-      setShowPromptEditor(false);
+      // Keep prompt editor open so user can modify/regenerate
     }
   };
 
@@ -55,11 +58,13 @@ export function ImageSection({
     if (!file) return;
 
     setUploadError(null);
+    setIsUploadingFile(true);
 
     // Validate file
     const validation = validateFile(file, postType);
     if (!validation.valid) {
       setUploadError(validation.error || "Invalid file");
+      setIsUploadingFile(false);
       return;
     }
 
@@ -69,6 +74,8 @@ export function ImageSection({
       onUploadImage(file, dataUrl);
     } catch (error) {
       setUploadError("Failed to read file. Please try again.");
+    } finally {
+      setIsUploadingFile(false);
     }
 
     // Reset file input
@@ -102,7 +109,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {image?.url && (
+      {image?.url && showImageStatus && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -132,25 +139,25 @@ export function ImageSection({
             />
             <button
               onClick={handleUploadClick}
-              disabled={isGenerating}
-              className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isGenerating || isUploadingFile}
+              className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload className="w-4 h-4" />
               {image ? 'Replace Image' : 'Upload Image'}
             </button>
             <button
               onClick={() => setShowPromptEditor(true)}
-              disabled={isGenerating}
-              className="flex-1 px-4 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isGenerating || isUploadingFile}
+              className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
               Generate with AI
             </button>
           </div>
-          {isGenerating ? (
-            <div className="flex items-center justify-center gap-2 text-sm text-linkedin-600 dark:text-linkedin-400">
-              <div className="w-4 h-4 border-2 border-linkedin-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="font-medium">Generating image...</span>
+          {isGenerating || isUploadingFile ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <div className="w-4 h-4 border-2 border-gray-500 dark:border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="font-medium">{isUploadingFile ? 'Uploading image...' : 'Generating image...'}</span>
             </div>
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">

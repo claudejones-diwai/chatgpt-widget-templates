@@ -224,6 +224,7 @@ export default function App() {
                   onUploadImage={handleUploadImage}
                   onRemoveImage={() => setCurrentImage(undefined)}
                   isGenerating={generateImage.loading}
+                  showImageStatus={viewMode === 'edit'}
                 />
               )}
             </div>
