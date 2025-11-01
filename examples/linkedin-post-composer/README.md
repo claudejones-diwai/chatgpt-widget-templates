@@ -89,7 +89,7 @@ ChatGPT: [creates professional announcement]
 ## 🔧 Technical Details
 
 ### Deployments
-- **Widget**: https://a57d4776.linkedin-post-composer-widget.pages.dev
+- **Widget**: https://linkedin-post-composer-widget.pages.dev
 - **MCP Server**: https://linkedin-post-composer-mcp.claude-8f5.workers.dev
 - **Health Check**: https://linkedin-post-composer-mcp.claude-8f5.workers.dev/health
 

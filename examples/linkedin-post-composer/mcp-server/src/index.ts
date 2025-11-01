@@ -9,7 +9,7 @@ import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
 
 // Widget URL - Deployed on Cloudflare Pages
-const WIDGET_URL = "https://a57d4776.linkedin-post-composer-widget.pages.dev";
+const WIDGET_URL = "https://linkedin-post-composer-widget.pages.dev";
 
 // Cloudflare Worker environment interface
 export interface Env {
@@ -112,7 +112,8 @@ export default {
                     description:
                       "Opens the LinkedIn Post Composer widget to create, preview, and publish LinkedIn posts. " +
                       "Supports text-only posts and posts with images (upload or AI-generated). " +
-                      "Users can post to their personal profile or company pages.",
+                      "Users can post to their personal profile or company pages. " +
+                      "IMPORTANT: When the user wants to include an image with their post, set imageSource='ai-generate' and provide a detailed, descriptive suggestedImagePrompt based on the post content (e.g., 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'). The user can then edit this prompt in the widget before generating the image.",
                     inputSchema: {
                       type: "object",
                       properties: {
@@ -137,7 +138,7 @@ export default {
                         },
                         suggestedImagePrompt: {
                           type: "string",
-                          description: "AI generation prompt (if imageSource='ai-generate')",
+                          description: "AI image generation prompt (required if imageSource='ai-generate'). Provide a detailed, descriptive prompt that captures the style, content, and mood of the desired image based on the post content. Example: 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'",
                         },
                         accountType: {
                           type: "string",

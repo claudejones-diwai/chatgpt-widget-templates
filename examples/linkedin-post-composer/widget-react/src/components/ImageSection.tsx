@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Upload, Sparkles, X, RefreshCw } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, Sparkles, X, RefreshCw, AlertCircle } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
+import { validateFile, readFileAsDataURL } from "../utils/fileValidation";
 
 interface ImageSectionProps {
   image?: {
@@ -8,14 +9,34 @@ interface ImageSectionProps {
     url?: string;
     prompt?: string;
   };
+  postType: 'text' | 'image' | 'video' | 'document' | 'carousel' | 'poll';
+  suggestedPrompt?: string;
   onGenerateImage: (prompt: string) => void;
+  onUploadImage: (file: File, dataUrl: string) => void;
   onRemoveImage: () => void;
   isGenerating: boolean;
 }
 
-export function ImageSection({ image, onGenerateImage, onRemoveImage, isGenerating }: ImageSectionProps) {
+export function ImageSection({
+  image,
+  postType,
+  suggestedPrompt,
+  onGenerateImage,
+  onUploadImage,
+  onRemoveImage,
+  isGenerating
+}: ImageSectionProps) {
   const [showPromptEditor, setShowPromptEditor] = useState(false);
-  const [imagePrompt, setImagePrompt] = useState(image?.prompt || "");
+  const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update image prompt when suggested prompt changes
+  useState(() => {
+    if (suggestedPrompt && !image?.prompt) {
+      setImagePrompt(suggestedPrompt);
+    }
+  });
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
@@ -30,6 +51,38 @@ export function ImageSection({ image, onGenerateImage, onRemoveImage, isGenerati
     }
   };
 
+  const handleUploadClick = () => {
+    setUploadError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+
+    // Validate file
+    const validation = validateFile(file, postType);
+    if (!validation.valid) {
+      setUploadError(validation.error || "Invalid file");
+      return;
+    }
+
+    try {
+      // Read file as data URL for immediate preview
+      const dataUrl = await readFileAsDataURL(file);
+      onUploadImage(file, dataUrl);
+    } catch (error) {
+      setUploadError("Failed to read file. Please try again.");
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -38,24 +91,52 @@ export function ImageSection({ image, onGenerateImage, onRemoveImage, isGenerati
         </label>
       </div>
 
-      {/* Action Buttons */}
-      {!image && !showPromptEditor && (
-        <div className="flex gap-2">
+      {/* Upload Error */}
+      {uploadError && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-red-700 dark:text-red-300">{uploadError}</p>
+          </div>
           <button
-            onClick={() => alert("File upload coming in Phase 2!")}
-            className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+            onClick={() => setUploadError(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
           >
-            <Upload className="w-4 h-4" />
-            Upload Image
-          </button>
-          <button
-            onClick={() => setShowPromptEditor(true)}
-            className="flex-1 px-4 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-          >
-            <Sparkles className="w-4 h-4" />
-            Generate with AI
+            <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      {/* Action Buttons */}
+      {!image && !showPromptEditor && (
+        <>
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              onClick={handleUploadClick}
+              className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Image
+            </button>
+            <button
+              onClick={() => setShowPromptEditor(true)}
+              className="flex-1 px-4 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate with AI
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+            Supported: JPG, PNG • Max size: 10MB
+          </p>
+        </>
       )}
 
       {/* Prompt Editor */}
@@ -118,11 +199,11 @@ export function ImageSection({ image, onGenerateImage, onRemoveImage, isGenerati
             <img
               src={image.url}
               alt="Post image"
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600"
+              className="w-full max-h-96 object-contain rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900"
             />
             <button
               onClick={onRemoveImage}
-              className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-90 group-hover:opacity-100"
             >
               <X className="w-4 h-4" />
             </button>

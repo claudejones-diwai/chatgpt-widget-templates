@@ -7,6 +7,8 @@ interface PostPreviewProps {
 }
 
 export function PostPreview({ accountName, content, imageUrl }: PostPreviewProps) {
+  const isEmpty = !content.trim() && !imageUrl;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -14,7 +16,7 @@ export function PostPreview({ accountName, content, imageUrl }: PostPreviewProps
           Preview
         </label>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          How it will look on LinkedIn
+          {isEmpty ? "Start typing to see preview" : "How it will look on LinkedIn"}
         </span>
       </div>
 
@@ -46,7 +48,23 @@ export function PostPreview({ accountName, content, imageUrl }: PostPreviewProps
 
           {/* Post Content */}
           <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
-            {content || <span className="text-gray-400 dark:text-gray-500 italic">Your post content will appear here...</span>}
+            {content ? (
+              content
+            ) : (
+              <div className="text-center py-8 space-y-3">
+                <div className="text-gray-400 dark:text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  Start typing in the Edit tab to see your post preview
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Your content will update here in real-time
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -84,9 +102,11 @@ export function PostPreview({ accountName, content, imageUrl }: PostPreviewProps
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-        This is a preview. The actual post may look slightly different on LinkedIn.
-      </p>
+      {!isEmpty && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          This is a preview. The actual post may look slightly different on LinkedIn.
+        </p>
+      )}
     </div>
   );
 }
