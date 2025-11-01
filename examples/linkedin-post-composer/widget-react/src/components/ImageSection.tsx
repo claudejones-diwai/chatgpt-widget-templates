@@ -173,6 +173,21 @@ export function ImageSection({
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Describe the image you want to generate
           </label>
+
+          {/* Success message when image is generated */}
+          {image?.url && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+                Image generated! View in Preview tab or modify prompt to regenerate
+              </span>
+            </div>
+          )}
+
           <TextareaAutosize
             value={imagePrompt}
             onChange={(e) => setImagePrompt(e.target.value)}
