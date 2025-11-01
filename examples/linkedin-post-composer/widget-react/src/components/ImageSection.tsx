@@ -33,6 +33,7 @@ export function ImageSection({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [hasAcknowledgedImage, setHasAcknowledgedImage] = useState(false);
+  const [wasGenerating, setWasGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -56,17 +57,25 @@ export function ImageSection({
     }
   }, [showImageStatus, image?.url]);
 
+  // Auto-close prompt editor when image generation completes
+  useEffect(() => {
+    if (isGenerating) {
+      setWasGenerating(true);
+    } else if (wasGenerating && image?.url) {
+      // Generation just completed - close the editor to show notification
+      setShowPromptEditor(false);
+      setWasGenerating(false);
+    }
+  }, [isGenerating, image?.url, wasGenerating]);
+
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
       onGenerateImage(imagePrompt.trim());
-      setHasAcknowledgedImage(true); // Mark as acknowledged when regenerating
-      // Keep prompt editor open so user can modify/regenerate
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
-    setHasAcknowledgedImage(true); // Mark as acknowledged when uploading
     fileInputRef.current?.click();
   };
 
