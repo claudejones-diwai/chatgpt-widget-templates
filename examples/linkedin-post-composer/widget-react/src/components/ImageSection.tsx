@@ -24,7 +24,7 @@ export function ImageSection({
   suggestedPrompt,
   onGenerateImage,
   onUploadImage,
-  onRemoveImage,
+  onRemoveImage: _onRemoveImage,
   isGenerating,
   showImageStatus = true
 }: ImageSectionProps) {
@@ -32,7 +32,9 @@ export function ImageSection({
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [lastShownImageUrl, setLastShownImageUrl] = useState<string | undefined>();
+  const [showToast, setShowToast] = useState(false);
+  const [lastImageUrl, setLastImageUrl] = useState<string | undefined>();
+  const [wasGenerating, setWasGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -42,28 +44,38 @@ export function ImageSection({
     }
   }, [suggestedPrompt, image?.prompt]);
 
-  // Mark as shown when switching to preview tab
+  // Track generation state to close editor when done
   useEffect(() => {
-    if (!showImageStatus && image?.url) {
-      setLastShownImageUrl(image.url);
+    if (isGenerating) {
+      setWasGenerating(true);
+    } else if (wasGenerating && image?.url) {
+      // Generation complete - close editor
+      setShowPromptEditor(false);
+      setWasGenerating(false);
     }
-  }, [showImageStatus, image?.url]);
+  }, [isGenerating, image?.url, wasGenerating]);
+
+  // Show toast when new image appears
+  useEffect(() => {
+    if (image?.url && image.url !== lastImageUrl) {
+      setLastImageUrl(image.url);
+      setShowToast(true);
+      // Auto-dismiss after 3 seconds
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [image?.url, lastImageUrl]);
 
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
-      setLastShownImageUrl(image?.url);
       onGenerateImage(imagePrompt.trim());
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
-    setLastShownImageUrl(image?.url);
     fileInputRef.current?.click();
   };
-
-  // Show notification only if we haven't shown it for this specific image yet
-  const shouldShowNotification = image?.url && image.url !== lastShownImageUrl && showImageStatus && !showPromptEditor;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -120,21 +132,17 @@ export function ImageSection({
         </div>
       )}
 
-      {/* Image Status Indicator */}
-      {shouldShowNotification && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
-              Image added • View in Preview tab
+      {/* Toast Notification */}
+      {showToast && showImageStatus && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ease-in-out">
+          <div className="px-4 py-3 bg-green-600 dark:bg-green-700 text-white rounded-lg shadow-lg flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium">
+              Image added! Click Preview to see it
             </span>
           </div>
-          <button
-            onClick={onRemoveImage}
-            className="text-sm text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 underline"
-          >
-            Remove
-          </button>
         </div>
       )}
 
