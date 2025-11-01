@@ -32,6 +32,7 @@ export function ImageSection({
   const [imagePrompt, setImagePrompt] = useState(image?.prompt || suggestedPrompt || "");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [lastShownImageUrl, setLastShownImageUrl] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update image prompt when suggested prompt changes
@@ -41,16 +42,28 @@ export function ImageSection({
     }
   }, [suggestedPrompt, image?.prompt]);
 
+  // Mark as shown when switching to preview tab
+  useEffect(() => {
+    if (!showImageStatus && image?.url) {
+      setLastShownImageUrl(image.url);
+    }
+  }, [showImageStatus, image?.url]);
+
   const handleGenerate = () => {
     if (imagePrompt.trim().length >= 10) {
+      setLastShownImageUrl(image?.url);
       onGenerateImage(imagePrompt.trim());
     }
   };
 
   const handleUploadClick = () => {
     setUploadError(null);
+    setLastShownImageUrl(image?.url);
     fileInputRef.current?.click();
   };
+
+  // Show notification only if we haven't shown it for this specific image yet
+  const shouldShowNotification = image?.url && image.url !== lastShownImageUrl && showImageStatus && !showPromptEditor;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -108,7 +121,7 @@ export function ImageSection({
       )}
 
       {/* Image Status Indicator */}
-      {image?.url && showImageStatus && !showPromptEditor && (
+      {shouldShowNotification && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
