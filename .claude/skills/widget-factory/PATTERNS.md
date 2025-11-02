@@ -606,6 +606,644 @@ Use Tailwind's responsive prefixes:
 </div>
 ```
 
+## Advanced Patterns
+
+### Server Actions Pattern
+
+Server actions enable widgets to perform async operations after initial load.
+
+**Use Cases:**
+- AI generation (images, text, suggestions)
+- File upload to storage
+- Publishing to external services
+- Fetching additional data
+
+**MCP Server Implementation:**
+
+```typescript
+// src/index.ts - Add server action to tools/call handler
+case "tools/call":
+  const toolName = body.params?.name;
+  const toolArgs = body.params?.arguments || {};
+
+  // Main tool
+  if (toolName === "compose_linkedin_post") {
+    const toolData = handleComposeLinkedInPost(toolArgs);
+    result = {
+      content: [{ type: "text", text: "Opening LinkedIn Post Composer..." }],
+      structuredContent: toolData,
+      _meta: { "openai/outputTemplate": WIDGET_URL },
+    };
+  }
+  // Server actions
+  else if (toolName === "generate_image") {
+    const imageData = await handleGenerateImage(toolArgs);
+    result = {
+      content: [{ type: "text", text: "Image generated successfully" }],
+      structuredContent: imageData,
+    };
+  }
+  else if (toolName === "publish_post") {
+    const publishData = await handlePublishPost(toolArgs);
+    result = {
+      content: [{ type: "text", text: publishData.message }],
+      structuredContent: publishData,
+    };
+  }
+  else {
+    return jsonRpcError(body.id, -32601, `Tool not found: ${toolName}`);
+  }
+  break;
+```
+
+**Server Action Handler:**
+
+```typescript
+// src/tools/generate_image.ts
+import type { GenerateImageOutput } from "../../shared-types";
+
+export interface GenerateImageArgs {
+  prompt: string;
+  style: string;
+  size: string;
+}
+
+export async function handleGenerateImage(args: GenerateImageArgs): Promise<GenerateImageOutput> {
+  // Phase 1: Return mock data
+  return {
+    success: true,
+    message: "Image generated successfully (mock)",
+    imageUrl: "https://via.placeholder.com/1024x1024",
+  };
+
+  // Phase 2: Real DALL-E API integration
+  // const response = await fetch("https://api.openai.com/v1/images/generations", {
+  //   method: "POST",
+  //   headers: { "Authorization": `Bearer ${env.OPENAI_API_KEY}` },
+  //   body: JSON.stringify({ prompt: args.prompt, size: args.size })
+  // });
+  // const data = await response.json();
+  // return { success: true, imageUrl: data.data[0].url };
+}
+```
+
+**Widget Implementation with useServerAction:**
+
+```typescript
+// src/hooks/useServerAction.ts
+import { useState, useCallback } from "react";
+
+interface ServerActionState<T> {
+  loading: boolean;
+  result: T | null;
+  error: Error | null;
+}
+
+export function useServerAction<TArgs, TResult>(actionName: string) {
+  const [state, setState] = useState<ServerActionState<TResult>>({
+    loading: false,
+    result: null,
+    error: null,
+  });
+
+  const execute = useCallback(
+    async (args: TArgs): Promise<TResult | null> => {
+      setState({ loading: true, result: null, error: null });
+
+      try {
+        const response = await fetch(window.openai?.toolOutput?.mcpServerUrl + "/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: Date.now(),
+            method: "tools/call",
+            params: { name: actionName, arguments: args },
+          }),
+        });
+
+        const data = await response.json();
+        const result = data.result?.structuredContent;
+        setState({ loading: false, result, error: null });
+        return result;
+      } catch (error) {
+        setState({ loading: false, result: null, error: error as Error });
+        return null;
+      }
+    },
+    [actionName]
+  );
+
+  return { ...state, execute };
+}
+```
+
+**Usage in Component:**
+
+```typescript
+// src/App.tsx
+import { useServerAction } from "./hooks";
+
+const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
+const publishPost = useServerAction<PublishPostArgs, PublishPostOutput>("publish_post");
+
+const handleGenerateImage = async (prompt: string) => {
+  const result = await generateImage.execute({
+    prompt,
+    style: "professional",
+    size: "1024x1024"
+  });
+
+  if (result?.success) {
+    setImageUrl(result.imageUrl);
+  }
+};
+
+// Show loading state
+{generateImage.loading && <div>Generating image...</div>}
+
+// Show result
+{generateImage.result?.success && <img src={generateImage.result.imageUrl} />}
+```
+
+### Edit/Preview Tabs Pattern
+
+Separate editing and preview into distinct views for content creation widgets.
+
+**When to Use:**
+- Content creation widgets (posts, emails, documents)
+- User needs to see final output before publishing
+- Multiple editing steps before submission
+
+**Implementation:**
+
+```typescript
+// src/App.tsx
+type ViewMode = 'edit' | 'preview';
+
+export default function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>();
+
+  return (
+    <div className={theme === "dark" ? "dark" : ""}>
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setViewMode('edit')}
+          className={`flex-1 px-4 py-3 text-sm font-medium ${
+            viewMode === 'edit'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Edit3 className="w-4 h-4 inline mr-2" />
+          Edit
+        </button>
+        <button
+          onClick={() => setViewMode('preview')}
+          className={`flex-1 px-4 py-3 text-sm font-medium ${
+            viewMode === 'preview'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Eye className="w-4 h-4 inline mr-2" />
+          Preview
+        </button>
+      </div>
+
+      {/* Edit View */}
+      {viewMode === 'edit' && (
+        <div className="p-6 space-y-6">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+            rows={10}
+          />
+          {/* Other editing controls */}
+        </div>
+      )}
+
+      {/* Preview View */}
+      {viewMode === 'preview' && (
+        <div className="p-6">
+          <div className="prose dark:prose-invert">
+            {content}
+          </div>
+          {imageUrl && <img src={imageUrl} alt="Preview" />}
+        </div>
+      )}
+
+      {/* Action Buttons - Context-aware */}
+      {viewMode === 'edit' ? (
+        <button onClick={() => setViewMode('preview')}>
+          See Preview
+        </button>
+      ) : (
+        <div className="flex gap-3">
+          <button onClick={() => setViewMode('edit')}>Back</button>
+          <button onClick={handlePublish}>Publish</button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### Toast Notifications Pattern
+
+Provide user feedback for async operations without blocking the UI.
+
+**When to Use:**
+- Server action completes (success or error)
+- Background operations finish
+- User needs non-blocking feedback
+
+**Implementation:**
+
+```typescript
+// src/components/Toast.tsx
+import { X } from "lucide-react";
+
+interface ToastProps {
+  message: string;
+  type?: "success" | "error" | "info";
+  onDismiss: () => void;
+}
+
+export function Toast({ message, type = "success", onDismiss }: ToastProps) {
+  const bgColor = {
+    success: "bg-green-600 dark:bg-green-700",
+    error: "bg-red-600 dark:bg-red-700",
+    info: "bg-blue-600 dark:bg-blue-700",
+  }[type];
+
+  const icon = {
+    success: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+    ),
+    error: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    ),
+    info: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  }[type];
+
+  return (
+    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+      <div className={`px-6 py-4 ${bgColor} text-white rounded-lg shadow-lg flex items-center gap-3 min-w-[320px]`}>
+        <div className="flex-shrink-0">{icon}</div>
+        <span className="text-base font-medium whitespace-nowrap">{message}</span>
+        <button onClick={onDismiss} className="ml-auto">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Usage with Async Operation Tracking:**
+
+```typescript
+// src/App.tsx or component
+const [showToast, setShowToast] = useState(false);
+const [wasGenerating, setWasGenerating] = useState(false);
+
+// Track when operation completes
+useEffect(() => {
+  if (generateImage.loading) {
+    setWasGenerating(true);
+  } else if (wasGenerating) {
+    setWasGenerating(false);
+    setShowToast(true); // Show toast when generation completes
+  }
+}, [generateImage.loading, wasGenerating]);
+
+return (
+  <>
+    {showToast && (
+      <Toast
+        message="Image added! Click Preview to see it"
+        type="success"
+        onDismiss={() => setShowToast(false)}
+      />
+    )}
+  </>
+);
+```
+
+### Async Operation Tracking Pattern
+
+Track async operation completion to trigger UI updates or notifications.
+
+**Problem:** How to detect when an async operation completes and trigger side effects (like showing a toast)?
+
+**Solution:** Use "wasX" state pattern to detect transitions from loading to complete.
+
+```typescript
+const [wasGenerating, setWasGenerating] = useState(false);
+const [wasUploading, setWasUploading] = useState(false);
+
+const generateImage = useServerAction<GenerateImageArgs, GenerateImageOutput>("generate_image");
+const uploadImage = useServerAction<UploadImageArgs, UploadImageOutput>("upload_image");
+
+// Track generation state - show toast when complete
+useEffect(() => {
+  if (generateImage.loading) {
+    setWasGenerating(true);
+  } else if (wasGenerating) {
+    setWasGenerating(false);
+    // Operation just completed
+    setShowToast(true);
+    setShowEditor(false); // Close editor
+  }
+}, [generateImage.loading, wasGenerating]);
+
+// Track upload state - show toast when complete
+useEffect(() => {
+  if (uploadImage.loading) {
+    setWasUploading(true);
+  } else if (wasUploading) {
+    setWasUploading(false);
+    // Operation just completed
+    setShowToast(true);
+  }
+}, [uploadImage.loading, wasUploading]);
+```
+
+**Pattern Breakdown:**
+1. When operation starts (`loading === true`), set `wasX = true`
+2. When operation completes (`loading === false` and `wasX === true`), trigger side effects
+3. Reset `wasX = false` after handling completion
+
+This pattern is more reliable than auto-dismiss timers and gives user control.
+
+### Success State Pattern
+
+Hide the form and show a compact success message after successful completion.
+
+**When to Use:**
+- After publishing/submitting content
+- After completing a multi-step flow
+- When the widget's primary action is complete
+
+**Implementation:**
+
+```typescript
+// src/App.tsx
+export default function App() {
+  const publishPost = useServerAction<PublishPostArgs, PublishPostOutput>("publish_post");
+
+  // Conditional container height - compact after success
+  return (
+    <div className={theme === "dark" ? "dark" : ""}>
+      <div className={`bg-gray-50 dark:bg-gray-900 ${publishPost.result?.success ? 'min-h-fit' : 'min-h-screen'}`}>
+        <div className="max-w-2xl mx-auto p-6 space-y-6">
+          <h1>Widget Title</h1>
+
+          {/* Show form only if not successfully published */}
+          {!publishPost.result?.success && (
+            <>
+              {/* Tab Navigation */}
+              <div className="flex border-b">...</div>
+
+              {/* Edit View */}
+              {viewMode === 'edit' && <div>...</div>}
+
+              {/* Preview View */}
+              {viewMode === 'preview' && <div>...</div>}
+            </>
+          )}
+
+          {/* Success State - Replaces entire form */}
+          {publishPost.result?.success ? (
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 dark:text-green-100">
+                    Published successfully!
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                    {publishPost.result.message}
+                  </p>
+                  {publishPost.result.postUrl && (
+                    <a
+                      href={publishPost.result.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                    >
+                      View Post
+                      <Eye className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : publishPost.result && !publishPost.result.success ? (
+            /* Error State */
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 dark:text-red-100">Failed to publish</h3>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{publishPost.result.message}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+**Key Points:**
+- Hide form with `{!publishPost.result?.success && (...)}`
+- Adjust container height: `min-h-screen` → `min-h-fit`
+- Show success/error messages in place of form
+- No close buttons needed (ChatGPT manages widget lifecycle)
+
+### File Upload Pattern
+
+Handle client-side file uploads with validation and server action integration.
+
+**When to Use:**
+- Widget needs to upload images/documents
+- Files should be validated before upload
+- Preview needed before publishing
+
+**Client-Side Implementation:**
+
+```typescript
+// src/components/FileUpload.tsx
+interface FileUploadProps {
+  onUpload: (file: File, dataUrl: string) => void;
+  accept?: string;
+  maxSize?: number; // in bytes
+}
+
+export function FileUpload({ onUpload, accept = "image/*", maxSize = 5 * 1024 * 1024 }: FileUploadProps) {
+  const [error, setError] = useState<string>();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size
+    if (maxSize && file.size > maxSize) {
+      setError(`File size must be less than ${maxSize / 1024 / 1024}MB`);
+      return;
+    }
+
+    // Validate file type
+    if (accept && !file.type.match(accept.replace('*', '.*'))) {
+      setError(`File type must be ${accept}`);
+      return;
+    }
+
+    setError(undefined);
+
+    // Read file as data URL for preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      onUpload(file, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept={accept}
+        onChange={handleFileChange}
+        className="hidden"
+        id="file-upload"
+      />
+      <label
+        htmlFor="file-upload"
+        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+      >
+        <Upload className="w-4 h-4" />
+        Upload File
+      </label>
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>
+      )}
+    </div>
+  );
+}
+```
+
+**Usage with Server Action:**
+
+```typescript
+// src/App.tsx
+const [uploadedFile, setUploadedFile] = useState<{ file: File; dataUrl: string }>();
+const uploadImage = useServerAction<UploadImageArgs, UploadImageOutput>("upload_image");
+
+const handleUpload = (file: File, dataUrl: string) => {
+  // Phase 1: Use data URL directly for preview
+  setUploadedFile({ file, dataUrl });
+  setImageUrl(dataUrl);
+
+  // Phase 2: Upload to server
+  // const formData = new FormData();
+  // formData.append('file', file);
+  // uploadImage.execute({ file: formData });
+};
+
+return (
+  <FileUpload
+    onUpload={handleUpload}
+    accept="image/*"
+    maxSize={5 * 1024 * 1024}
+  />
+);
+```
+
+**Server Action (Phase 2):**
+
+```typescript
+// src/tools/upload_image.ts
+import type { UploadImageOutput } from "../../shared-types";
+
+export interface UploadImageArgs {
+  fileName: string;
+  fileType: string;
+  fileData: string; // Base64 encoded
+}
+
+export async function handleUploadImage(args: UploadImageArgs, env: Env): Promise<UploadImageOutput> {
+  // Phase 1: Return mock success
+  return {
+    success: true,
+    message: "Image uploaded (mock)",
+    imageUrl: args.fileData, // Return the data URL
+  };
+
+  // Phase 2: Upload to Cloudflare R2
+  // const buffer = Buffer.from(args.fileData.split(',')[1], 'base64');
+  // const key = `${Date.now()}-${args.fileName}`;
+  // await env.R2_BUCKET.put(key, buffer, {
+  //   httpMetadata: { contentType: args.fileType }
+  // });
+  // return {
+  //   success: true,
+  //   imageUrl: `https://your-r2-domain/${key}`
+  // };
+}
+```
+
+## Widget Lifecycle and Restrictions
+
+**Important:** ChatGPT widgets run in a sandboxed iframe and have lifecycle restrictions.
+
+### What Widgets CANNOT Do:
+
+1. **Close themselves**: `window.close()` does not work
+2. **Navigate parent window**: Cannot control ChatGPT's navigation
+3. **Access parent window**: Sandboxed iframe prevents cross-origin access
+4. **Refresh themselves**: Should not implement refresh buttons
+
+### What ChatGPT Controls:
+
+1. **Widget Opening**: ChatGPT decides when to open the widget based on tool invocation
+2. **Widget Closing**: User closes via ChatGPT's UI (not widget's close button)
+3. **Lifecycle**: ChatGPT manages the widget's lifecycle
+
+### Best Practices:
+
+1. **No Close/Cancel Buttons**: Don't add close or cancel buttons
+2. **Success State**: Show success message, let ChatGPT handle closure
+3. **Error Handling**: Show errors inline, allow retry
+4. **Navigation**: Use tabs/views within widget, not navigation away
+
+**Reference:** See [ChatGPT Widget Examples](https://github.com/openai/openai-apps-sdk-examples) - none have close buttons.
+
 ## Deployment Checklist
 
 Before deploying:
@@ -617,6 +1255,8 @@ Before deploying:
 - [ ] No TypeScript errors
 - [ ] Dark mode works correctly
 - [ ] All required dependencies installed
+- [ ] No close/cancel buttons in widget UI
+- [ ] Success state shows message instead of close button
 
 After deploying:
 
@@ -625,3 +1265,6 @@ After deploying:
 - [ ] MCP server health endpoint returns 200
 - [ ] MCP /mcp endpoint responds to tools/list
 - [ ] Widget receives and displays toolData correctly
+- [ ] Server actions work (if implemented)
+- [ ] Toast notifications show correctly
+- [ ] Success state displays properly
