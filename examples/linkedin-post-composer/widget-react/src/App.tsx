@@ -5,6 +5,7 @@ import { AccountSelector } from "./components/AccountSelector";
 import { PostPreview } from "./components/PostPreview";
 import { Toolbar } from "./components/Toolbar";
 import { AddMediaModal } from "./components/AddMediaModal";
+import { AIPromptModal } from "./components/AIPromptModal";
 import { CarouselImageManager } from "./components/CarouselImageManager";
 import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput, UploadCarouselImagesOutput } from "../../shared-types";
 
@@ -18,6 +19,7 @@ export default function App() {
   const [carouselImages, setCarouselImages] = useState<{ url: string; order: number }[]>([]);
   const [showSuccessToast, setShowSuccessToast] = useState(true);
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
+  const [showAIPromptModal, setShowAIPromptModal] = useState(false);
 
   // Server actions
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
@@ -65,6 +67,42 @@ export default function App() {
     if (mediaType === 'image') {
       // Single image upload
       const file = files[0];
+
+      // If there's already a single image, upgrade to a 2-image carousel
+      if (currentImage) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          // Create carousel with existing image + new image
+          const imageData = [
+            {
+              image: currentImage.url!,
+              filename: 'existing-image.jpg',
+              order: 0
+            },
+            {
+              image: reader.result as string,
+              filename: file.name,
+              order: 1
+            }
+          ];
+
+          try {
+            const result = await uploadCarouselImages.execute({ images: imageData });
+            if (result.success && result.data?.images) {
+              // Clear single image and set carousel
+              setCurrentImage(undefined);
+              setCarouselImages(result.data.images);
+              setShowAddMediaModal(false);
+            }
+          } catch (error) {
+            console.error('Failed to upgrade to carousel:', error);
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      // No existing image, just set as single image
       const reader = new FileReader();
       reader.onload = () => {
         setCurrentImage({
@@ -79,6 +117,9 @@ export default function App() {
 
     if (mediaType === 'carousel') {
       // Carousel images upload (2-20 images)
+      // Calculate starting order based on existing carousel images
+      const startingOrder = carouselImages.length;
+
       const imageDataPromises = files.map(async (file, index) => {
         return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
           const reader = new FileReader();
@@ -86,7 +127,7 @@ export default function App() {
             resolve({
               image: reader.result as string,
               filename: file.name,
-              order: index
+              order: startingOrder + index  // Append with correct sequential order
             });
           };
           reader.onerror = reject;
@@ -101,7 +142,9 @@ export default function App() {
         const result = await uploadCarouselImages.execute({ images: imageData });
 
         if (result.success && result.data?.images) {
-          setCarouselImages(result.data.images);
+          // Append new images to existing carousel instead of replacing
+          const newImages = result.data.images;
+          setCarouselImages(prev => [...prev, ...newImages]);
           setShowAddMediaModal(false);
         }
       } catch (error) {
@@ -111,21 +154,12 @@ export default function App() {
   };
 
   // Toolbar handlers
-  const handleGenerateAI = async () => {
-    if (!toolData) return;
+  const handleGenerateAI = () => {
+    setShowAIPromptModal(true);
+  };
 
-    // Use ChatGPT's suggested image prompt if available
-    const prompt = toolData.suggestedImagePrompt ||
-      window.prompt(
-        'Enter a description for the AI image generation:',
-        'Professional workspace with modern design elements'
-      );
-
-    if (prompt && prompt.trim().length >= 10) {
-      await handleGenerateImage(prompt.trim());
-    } else if (prompt) {
-      alert('Please enter at least 10 characters for the image prompt');
-    }
+  const handleGenerateFromPrompt = async (prompt: string) => {
+    await handleGenerateImage(prompt);
   };
 
   const handleAddMedia = () => {
@@ -137,8 +171,8 @@ export default function App() {
     alert('Document upload coming in Phase 3.2!');
   };
 
-  const handleRemoveCarouselImage = (index: number) => {
-    setCarouselImages(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveCarouselImage = (order: number) => {
+    setCarouselImages(prev => prev.filter(img => img.order !== order));
   };
 
   // Handle publish
@@ -243,6 +277,8 @@ export default function App() {
                     carouselImages.length >= 2 ? 'carousel' :
                     currentImage ? 'image' : null
                   }
+                  isGeneratingAI={generateImage.loading}
+                  isUploadingMedia={uploadCarouselImages.loading}
                 />
               </div>
 
@@ -335,6 +371,15 @@ export default function App() {
           onClose={() => setShowAddMediaModal(false)}
           onUploadMedia={handleMediaUpload}
           isUploading={uploadCarouselImages.loading}
+        />
+
+        {/* AI Prompt Modal */}
+        <AIPromptModal
+          isOpen={showAIPromptModal}
+          onClose={() => setShowAIPromptModal(false)}
+          onGenerate={handleGenerateFromPrompt}
+          suggestedPrompt={toolData?.suggestedImagePrompt}
+          isGenerating={generateImage.loading}
         />
       </div>
     </div>

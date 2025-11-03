@@ -7,7 +7,7 @@ export interface CarouselImage {
 
 export interface CarouselImageManagerProps {
   images: CarouselImage[];
-  onRemoveImage: (index: number) => void;
+  onRemoveImage: (order: number) => void;
   onReorder?: (images: CarouselImage[]) => void;
   maxImages?: number;
 }
@@ -57,7 +57,7 @@ export function CarouselImageManager({
 
             {/* Remove Button */}
             <button
-              onClick={() => onRemoveImage(index)}
+              onClick={() => onRemoveImage(image.order)}
               className="absolute top-2 right-2 w-6 h-6 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
               aria-label={`Remove image ${index + 1}`}
             >
