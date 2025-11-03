@@ -4,9 +4,13 @@
 import { handleComposePost } from "./tools/compose_post";
 import { handleGenerateImage } from "./actions/generate-image";
 import { handleUploadImage } from "./actions/upload-image";
+import { handleUploadCarouselImages } from "./actions/upload-carousel-images";
 import { handlePublishPost } from "./actions/publish-post";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
+import { LinkedInOAuth } from "./oauth/linkedin";
+import { R2ImageStorage } from "./integrations/r2-storage";
+import { LinkedInPostsAPI } from "./integrations/linkedin-posts-api";
 
 // Widget URL - Deployed on Cloudflare Pages
 const WIDGET_URL = "https://linkedin-post-composer-widget.pages.dev";
@@ -16,7 +20,8 @@ export interface Env {
   OPENAI_API_KEY?: string;           // For DALL-E (Phase 2)
   LINKEDIN_CLIENT_ID?: string;        // For LinkedIn OAuth (Phase 2)
   LINKEDIN_CLIENT_SECRET?: string;    // For LinkedIn OAuth (Phase 2)
-  R2_BUCKET_NAME?: string;           // For image storage (Phase 2)
+  OAUTH_TOKENS: KVNamespace;         // For storing OAuth tokens (Phase 2)
+  IMAGE_BUCKET: R2Bucket;            // For permanent image storage (Phase 2)
 }
 
 // Cloudflare Worker export
@@ -48,6 +53,312 @@ export default {
       request.method === "GET"
     ) {
       return handleInfo(WIDGET_URL);
+    }
+
+    // OAuth initiation endpoint
+    if (url.pathname === "/oauth/linkedin") {
+      const state = crypto.randomUUID();
+      const oauth = new LinkedInOAuth(env, request.url);
+      const authUrl = oauth.getAuthorizationUrl(state);
+
+      return Response.redirect(authUrl, 302);
+    }
+
+    // OAuth callback endpoint
+    if (url.pathname === "/oauth/callback") {
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const error = url.searchParams.get("error");
+
+      if (error) {
+        return new Response(
+          `<!DOCTYPE html>
+          <html>
+            <head>
+              <title>OAuth Error</title>
+              <style>
+                body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .error { background: #fee; border: 2px solid #c33; border-radius: 8px; padding: 20px; }
+                h1 { color: #c33; }
+              </style>
+            </head>
+            <body>
+              <div class="error">
+                <h1>❌ OAuth Error</h1>
+                <p><strong>Error:</strong> ${error}</p>
+                <p><strong>Description:</strong> ${url.searchParams.get("error_description") || "Unknown error"}</p>
+                <p>Please try again or contact support if the issue persists.</p>
+              </div>
+            </body>
+          </html>`,
+          {
+            status: 400,
+            headers: { "Content-Type": "text/html" },
+          }
+        );
+      }
+
+      if (!code) {
+        return new Response("Missing authorization code", { status: 400 });
+      }
+
+      try {
+        const oauth = new LinkedInOAuth(env, request.url);
+
+        // Exchange code for token
+        const tokenData = await oauth.exchangeCodeForToken(code);
+
+        // Get user profile
+        const profile = await oauth.getUserProfile(tokenData.access_token);
+
+        // Store token
+        await oauth.storeToken(profile.sub, tokenData);
+
+        // Return success page
+        return new Response(
+          `<!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>LinkedIn Connected</title>
+              <style>
+                body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+                .success { background: #efe; border: 2px solid #3c3; border-radius: 8px; padding: 30px; }
+                h1 { color: #3c3; font-size: 2em; margin-bottom: 20px; }
+                .profile { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                .profile img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
+                .profile-name { font-size: 1.3em; font-weight: bold; margin: 10px 0; }
+                .profile-email { color: #666; font-size: 0.95em; }
+                .note { color: #666; font-size: 0.9em; margin-top: 20px; }
+              </style>
+            </head>
+            <body>
+              <div class="success">
+                <h1>✅ LinkedIn Connected Successfully!</h1>
+                <div class="profile">
+                  <img src="${profile.picture}" alt="${profile.name}" />
+                  <div class="profile-name">${profile.name}</div>
+                  ${profile.email ? `<div class="profile-email">${profile.email}</div>` : ''}
+                </div>
+                <p class="note">You can close this window and return to ChatGPT.</p>
+                <p class="note">Your LinkedIn account is now connected and ready to use!</p>
+              </div>
+            </body>
+          </html>`,
+          {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          }
+        );
+      } catch (err: any) {
+        console.error("OAuth callback error:", err);
+        return new Response(
+          `<!DOCTYPE html>
+          <html>
+            <head>
+              <title>OAuth Failed</title>
+              <style>
+                body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .error { background: #fee; border: 2px solid #c33; border-radius: 8px; padding: 20px; }
+                h1 { color: #c33; }
+                pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+              </style>
+            </head>
+            <body>
+              <div class="error">
+                <h1>❌ OAuth Failed</h1>
+                <p><strong>Error:</strong> ${err.message}</p>
+                <p>Please try again or contact support if the issue persists.</p>
+                <details>
+                  <summary>Technical Details</summary>
+                  <pre>${err.stack || err.toString()}</pre>
+                </details>
+              </div>
+            </body>
+          </html>`,
+          {
+            status: 500,
+            headers: { "Content-Type": "text/html" },
+          }
+        );
+      }
+    }
+
+    // Image serving endpoint - Serve images from R2
+    // Format: /images/linkedin-posts/123456-image.png
+    if (url.pathname.startsWith("/images/")) {
+      const imageKey = url.pathname.substring(8); // Remove "/images/" prefix
+      const storage = new R2ImageStorage(env);
+      return await storage.serveImage(imageKey);
+    }
+
+    // Debug endpoint to inspect organization API response
+    if (url.pathname === "/debug/organizations" && request.method === "GET") {
+      try {
+        // Get authenticated user ID from KV
+        const keys = await env.OAUTH_TOKENS.list({ prefix: 'linkedin:' });
+
+        if (keys.keys.length === 0) {
+          return new Response(JSON.stringify({ error: "No authenticated user found. Please authenticate via /oauth/linkedin first." }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        const userId = keys.keys[0].name.replace('linkedin:', '');
+        console.log('Debug: Found user ID:', userId);
+
+        // Fetch account data using LinkedInPostsAPI
+        const linkedInAPI = new LinkedInPostsAPI(env);
+        const accounts = await linkedInAPI.getAccounts(userId);
+
+        if (!accounts) {
+          return new Response(JSON.stringify({ error: "Failed to fetch accounts" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        // Return the full accounts data for inspection
+        return new Response(JSON.stringify({
+          userId,
+          personal: accounts.personal,
+          organizations: accounts.organizations,
+          rawData: "Check worker logs for full organization API responses"
+        }, null, 2), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err: any) {
+        console.error('Debug endpoint error:', err);
+        return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // Test endpoint to try fetching organization logos via different methods
+    if (url.pathname === "/debug/test-logo-fetch" && request.method === "GET") {
+      try {
+        const keys = await env.OAUTH_TOKENS.list({ prefix: 'linkedin:' });
+        if (keys.keys.length === 0) {
+          return new Response(JSON.stringify({ error: "No authenticated user" }), { status: 401, headers: { "Content-Type": "application/json" }});
+        }
+
+        const userId = keys.keys[0].name.replace('linkedin:', '');
+        const tokenData = await env.OAUTH_TOKENS.get(`linkedin:${userId}`);
+        if (!tokenData) {
+          return new Response(JSON.stringify({ error: "No token found" }), { status: 401, headers: { "Content-Type": "application/json" }});
+        }
+
+        const { access_token } = JSON.parse(tokenData);
+        const orgId = url.searchParams.get('orgId') || '18613176'; // Default to first org
+
+        const results: any = {
+          orgId,
+          tests: {}
+        };
+
+        // Test 1: Try fetching organization logo with field projection using tilde operator
+        // This expands the digitalmediaAsset URN to actual image URLs
+        try {
+          const resp1 = await fetch(
+            `https://api.linkedin.com/rest/organizations/${orgId}?projection=(id,localizedName,logoV2(displayImage~:playableStreams))`,
+            {
+              headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'LinkedIn-Version': '202411',
+                'X-Restli-Protocol-Version': '2.0.0',
+              }
+            }
+          );
+          results.tests.fieldProjectionWithTilde = {
+            status: resp1.status,
+            data: resp1.ok ? await resp1.json() : await resp1.text()
+          };
+        } catch (e: any) {
+          results.tests.fieldProjectionWithTilde = { error: e.message };
+        }
+
+        // Test 2: Fetch organization data and extract logoV2 URN
+        try {
+          const resp2 = await fetch(
+            `https://api.linkedin.com/rest/organizations/${orgId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'LinkedIn-Version': '202411',
+                'X-Restli-Protocol-Version': '2.0.0',
+              }
+            }
+          );
+          const orgData: any = resp2.ok ? await resp2.json() : null;
+          results.tests.basicOrganizationFetch = {
+            status: resp2.status,
+            data: orgData || await resp2.text(),
+            logoV2Field: orgData?.logoV2
+          };
+        } catch (e: any) {
+          results.tests.basicOrganizationFetch = { error: e.message };
+        }
+
+        // Test 3: Convert digitalmediaAsset URN to image URN and resolve
+        // LinkedIn hack: digitalmediaAsset ID is the same as image ID
+        try {
+          const orgResp = await fetch(`https://api.linkedin.com/rest/organizations/${orgId}`, {
+            headers: {
+              'Authorization': `Bearer ${access_token}`,
+              'LinkedIn-Version': '202411',
+              'X-Restli-Protocol-Version': '2.0.0',
+            }
+          });
+
+          if (orgResp.ok) {
+            const orgData: any = await orgResp.json();
+            if (orgData.logoV2?.cropped) {
+              const mediaUrn = orgData.logoV2.cropped;
+              results.foundLogoUrn = mediaUrn;
+
+              // Convert urn:li:digitalmediaAsset:XXX to urn:li:image:XXX
+              const imageUrn = mediaUrn.replace('digitalmediaAsset', 'image');
+              results.convertedImageUrn = imageUrn;
+
+              // Try to resolve using images API
+              const imageResp = await fetch(
+                `https://api.linkedin.com/rest/images/${encodeURIComponent(imageUrn)}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${access_token}`,
+                    'LinkedIn-Version': '202411',
+                    'X-Restli-Protocol-Version': '2.0.0',
+                  }
+                }
+              );
+
+              results.tests.convertUrnAndResolve = {
+                status: imageResp.status,
+                data: imageResp.ok ? await imageResp.json() : await imageResp.text()
+              };
+            } else {
+              results.tests.convertUrnAndResolve = { error: "No logoV2.cropped field found" };
+            }
+          }
+        } catch (e: any) {
+          results.tests.convertUrnAndResolve = { error: e.message };
+        }
+
+        return new Response(JSON.stringify(results, null, 2), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err: any) {
+        console.error('Test endpoint error:', err);
+        return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
     }
 
     // MCP JSON-RPC endpoint for ChatGPT
@@ -110,10 +421,14 @@ export default {
                   {
                     name: "compose_linkedin_post",
                     description:
-                      "Opens the LinkedIn Post Composer widget to create, preview, and publish LinkedIn posts. " +
-                      "Supports text-only posts and posts with images (upload or AI-generated). " +
-                      "Users can post to their personal profile or company pages. " +
-                      "IMPORTANT: When the user wants to include an image with their post, set imageSource='ai-generate' and provide a detailed, descriptive suggestedImagePrompt based on the post content (e.g., 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'). The user can then edit this prompt in the widget before generating the image.",
+                      "Use this when the user wants to create, draft, or publish a LinkedIn post. " +
+                      "Opens an interactive widget for composing LinkedIn content with AI assistance. " +
+                      "Supports text posts, AI-generated images (DALL-E), uploaded images, and posting to personal profiles or company pages. " +
+                      "The widget provides live preview, account selection, and image generation controls. " +
+                      "IMPORTANT: ALWAYS provide a detailed suggestedImagePrompt based on the post content, even for text posts. This gives users the option to add an AI-generated image later. " +
+                      "The prompt should be descriptive and capture the mood, style, and content of the post (e.g., 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'). " +
+                      "If the user explicitly wants an image, also set postType='image' and imageSource='ai-generate'. " +
+                      "Do NOT use this for: viewing existing LinkedIn posts, managing LinkedIn messages, or analyzing LinkedIn analytics.",
                     inputSchema: {
                       type: "object",
                       properties: {
@@ -138,7 +453,7 @@ export default {
                         },
                         suggestedImagePrompt: {
                           type: "string",
-                          description: "AI image generation prompt (required if imageSource='ai-generate'). Provide a detailed, descriptive prompt that captures the style, content, and mood of the desired image based on the post content. Example: 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'",
+                          description: "ALWAYS provide this field. AI image generation prompt suggestion based on the post content. Provide a detailed, descriptive prompt that captures the style, content, and mood that would complement the post. This gives users the option to generate an AI image even if they didn't explicitly request one. Example: 'Professional tech workspace with AI elements, modern design, blue and orange color scheme, minimalist style'",
                         },
                         accountType: {
                           type: "string",
@@ -204,6 +519,40 @@ export default {
                     },
                   },
                   {
+                    name: "upload_carousel_images",
+                    description: "Upload multiple images (2-20) for carousel post to Cloudflare R2 storage (server action)",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        images: {
+                          type: "array",
+                          description: "Array of carousel images",
+                          items: {
+                            type: "object",
+                            properties: {
+                              image: {
+                                type: "string",
+                                description: "Base64 encoded image data (with data:image/... prefix)",
+                              },
+                              filename: {
+                                type: "string",
+                                description: "Original filename",
+                              },
+                              order: {
+                                type: "number",
+                                description: "Display order (0-indexed)",
+                              },
+                            },
+                            required: ["image", "filename", "order"],
+                          },
+                          minItems: 2,
+                          maxItems: 20,
+                        },
+                      },
+                      required: ["images"],
+                    },
+                  },
+                  {
                     name: "publish_post",
                     description: "Publish post to LinkedIn (server action)",
                     inputSchema: {
@@ -219,11 +568,20 @@ export default {
                         },
                         imageUrl: {
                           type: "string",
-                          description: "Image URL (optional)",
+                          description: "Single image URL (optional, for single image posts)",
+                        },
+                        carouselImageUrls: {
+                          type: "array",
+                          description: "Array of image URLs for carousel posts (2-20 images)",
+                          items: {
+                            type: "string",
+                          },
+                          minItems: 2,
+                          maxItems: 20,
                         },
                         postType: {
                           type: "string",
-                          enum: ["text", "image"],
+                          enum: ["text", "image", "carousel"],
                         },
                       },
                       required: ["accountId", "content", "postType"],
@@ -322,17 +680,20 @@ export default {
 
               switch (toolName) {
                 case "compose_linkedin_post":
-                  toolResult = await handleComposePost(toolArgs);
+                  toolResult = await handleComposePost(toolArgs, env);
                   textMessage = `Opening LinkedIn Post Composer with your content...`;
                   result = {
                     content: [{ type: "text", text: textMessage }],
                     structuredContent: toolResult,
-                    _meta: { "openai/outputTemplate": WIDGET_URL },
+                    _meta: {
+                      "openai/outputTemplate": WIDGET_URL,
+                      "openai/widgetDescription": "Interactive LinkedIn post composer with account selection, content editor, AI image generation, live preview, and publish workflow"
+                    },
                   };
                   break;
 
                 case "generate_image":
-                  toolResult = await handleGenerateImage(toolArgs);
+                  toolResult = await handleGenerateImage(toolArgs, env);
                   textMessage = toolResult.success
                     ? `Image generated successfully!`
                     : `Error: ${toolResult.error}`;
@@ -343,7 +704,7 @@ export default {
                   break;
 
                 case "upload_image":
-                  toolResult = await handleUploadImage(toolArgs);
+                  toolResult = await handleUploadImage(toolArgs, env);
                   textMessage = toolResult.success
                     ? `Image uploaded successfully!`
                     : `Error: ${toolResult.error}`;
@@ -353,8 +714,19 @@ export default {
                   };
                   break;
 
+                case "upload_carousel_images":
+                  toolResult = await handleUploadCarouselImages(toolArgs, env);
+                  textMessage = toolResult.success
+                    ? toolResult.message || `Successfully uploaded ${toolResult.images?.length} carousel images!`
+                    : `Error: ${toolResult.error}`;
+                  result = {
+                    content: [{ type: "text", text: textMessage }],
+                    structuredContent: toolResult,
+                  };
+                  break;
+
                 case "publish_post":
-                  toolResult = await handlePublishPost(toolArgs);
+                  toolResult = await handlePublishPost(toolArgs, env);
                   textMessage = toolResult.message;
                   result = {
                     content: [{ type: "text", text: textMessage }],

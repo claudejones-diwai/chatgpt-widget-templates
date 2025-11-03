@@ -129,19 +129,45 @@ npm run dev  # Should open local dev server
 
 ### Step 1.2: Add LinkedIn Credentials to Cloudflare
 
+**IMPORTANT:** You must be in the `mcp-server` directory for wrangler commands to work.
+
 ```bash
-cd mcp-server
+# Navigate to mcp-server directory
+cd examples/linkedin-post-composer/mcp-server
 
-# Add LinkedIn credentials as Cloudflare secrets
+# Add LinkedIn Client ID
 npx wrangler secret put LINKEDIN_CLIENT_ID
-# When prompted, paste your Client ID
+# When prompted, paste: 86d4bjtmqjxh2d (your Client ID)
+# Press Enter
 
+# Add LinkedIn Client Secret
 npx wrangler secret put LINKEDIN_CLIENT_SECRET
-# When prompted, paste your Client Secret
+# When prompted:
+# 1. Go to LinkedIn Auth page
+# 2. Click eye icon to reveal secret
+# 3. Copy and paste here (won't show - this is normal for security)
+# 4. Press Enter
 
-# Verify secrets are set
+# Verify both secrets are set
 npx wrangler secret list
 ```
+
+**Expected output:**
+```json
+[
+  {
+    "name": "LINKEDIN_CLIENT_ID",
+    "type": "secret_text"
+  },
+  {
+    "name": "LINKEDIN_CLIENT_SECRET",
+    "type": "secret_text"
+  }
+]
+```
+
+**💡 Future Enhancement Note:**
+This secret management process could be automated in a multi-tenant SaaS version where users configure their own LinkedIn apps through a UI, storing credentials per-tenant in KV storage.
 
 ### Step 1.3: Create KV Namespace for OAuth Tokens
 

@@ -4,3 +4,11 @@ compatibility_date = "2025-01-27"
 
 [build]
 command = "npm run build"
+
+[[kv_namespaces]]
+binding = "OAUTH_TOKENS"
+id = "67a1346ec75b4f2a836a9031c576639b"
+
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "linkedin-post-images"

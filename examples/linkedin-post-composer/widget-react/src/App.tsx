@@ -1,32 +1,32 @@
 import { useState, useEffect } from "react";
-import { Edit3, Eye, Send } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { useTheme, useToolData, useServerAction } from "./hooks";
 import { AccountSelector } from "./components/AccountSelector";
-import { ContentEditor } from "./components/ContentEditor";
-import { ImageSection } from "./components/ImageSection";
 import { PostPreview } from "./components/PostPreview";
-import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput } from "../../shared-types";
-
-type ViewMode = 'edit' | 'preview';
+import { Toolbar } from "./components/Toolbar";
+import { AddMediaModal } from "./components/AddMediaModal";
+import { CarouselImageManager } from "./components/CarouselImageManager";
+import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput, UploadCarouselImagesOutput } from "../../shared-types";
 
 export default function App() {
   const theme = useTheme();
   const toolData = useToolData<ComposeLinkedInPostOutput>();
 
   // Local state
-  const [content, setContent] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [currentImage, setCurrentImage] = useState<{ source: 'upload' | 'ai-generate' | 'url'; url?: string; prompt?: string }>();
-  const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [carouselImages, setCarouselImages] = useState<{ url: string; order: number }[]>([]);
+  const [showSuccessToast, setShowSuccessToast] = useState(true);
+  const [showAddMediaModal, setShowAddMediaModal] = useState(false);
 
   // Server actions
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
+  const uploadCarouselImages = useServerAction<{ images: { image: string; filename: string; order: number }[] }, UploadCarouselImagesOutput>("upload_carousel_images");
   const publishPost = useServerAction<any, PublishPostOutput>("publish_post");
 
   // Initialize from tool data
   useEffect(() => {
     if (toolData) {
-      setContent(toolData.content || "");
       setSelectedAccountId(toolData.selectedAccountId || toolData.accounts.personal.id);
       // Only set image if there's an actual URL (not just a suggested prompt)
       if (toolData.image?.url) {
@@ -62,16 +62,76 @@ export default function App() {
     });
   };
 
+  // Handle carousel images upload
+  const handleCarouselUpload = async (files: File[]) => {
+    // Read all files as data URLs
+    const imageDataPromises = files.map(async (file, index) => {
+      return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({
+            image: reader.result as string,
+            filename: file.name,
+            order: index
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    });
+
+    try {
+      const imageData = await Promise.all(imageDataPromises);
+
+      // Upload to server
+      const result = await uploadCarouselImages.execute({ images: imageData });
+
+      if (result.success && result.data?.images) {
+        setCarouselImages(result.data.images);
+        setShowAddMediaModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to upload carousel images:', error);
+    }
+  };
+
+  // Toolbar handlers
+  const handleGenerateAI = () => {
+    // Open the prompt editor in PostPreview
+    // This is handled by PostPreview's internal state
+    // For now, we can just scroll to the preview section
+  };
+
+  const handleAddMedia = () => {
+    setShowAddMediaModal(true);
+  };
+
+  const handleAddDocument = () => {
+    // Phase 3.2: Document upload
+    alert('Document upload coming in Phase 3.2!');
+  };
+
+  const handleRemoveCarouselImage = (index: number) => {
+    setCarouselImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Handle publish
   const handlePublish = async () => {
     if (!toolData) return;
 
-    const postType = currentImage ? 'image' : 'text';
+    let postType: 'text' | 'image' | 'carousel' = 'text';
+
+    if (carouselImages.length >= 2) {
+      postType = 'carousel';
+    } else if (currentImage) {
+      postType = 'image';
+    }
 
     await publishPost.execute({
       accountId: selectedAccountId,
-      content,
+      content: toolData.content,
       imageUrl: currentImage?.url,
+      carouselImageUrls: carouselImages.map(img => img.url),
       postType
     });
   };
@@ -81,7 +141,7 @@ export default function App() {
     ? toolData.accounts.personal
     : toolData?.accounts.organizations.find(org => org.id === selectedAccountId);
 
-  const canPublish = content.trim().length > 0 && content.length <= 3000 && !publishPost.loading;
+  const canPublish = toolData && toolData.content.trim().length > 0 && !publishPost.loading;
 
   // Loading state
   if (!toolData) {
@@ -89,7 +149,7 @@ export default function App() {
       <div className={theme === "dark" ? "dark" : ""}>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
           <div className="text-center space-y-3">
-            <div className="w-12 h-12 border-4 border-linkedin-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="text-gray-600 dark:text-gray-400">Loading LinkedIn Post Composer...</p>
           </div>
         </div>
@@ -99,180 +159,79 @@ export default function App() {
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-      <div className={`bg-gray-50 dark:bg-gray-900 ${publishPost.result?.success ? 'min-h-fit' : 'min-h-screen'}`}>
-        <div className="max-w-2xl mx-auto p-6 space-y-6">
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              LinkedIn Post Composer
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Create, preview, and publish your LinkedIn post
-            </p>
-          </div>
-
-          {/* Show tabs and content only if not successfully published */}
+      <div className="min-h-screen bg-surface-secondary">
+        <div className="max-w-2xl mx-auto p-6 space-y-4">
+          {/* Main Publishing Card */}
           {!publishPost.result?.success && (
-            <>
-              {/* Tab Navigation */}
-              <div className="bg-white dark:bg-gray-800 rounded-t-xl border border-gray-200 dark:border-gray-700 border-b-0">
-                <div className="flex border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setViewMode('edit')}
-                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                      viewMode === 'edit'
-                        ? 'text-linkedin-600 dark:text-linkedin-400 border-b-2 border-linkedin-600 dark:border-linkedin-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setViewMode('preview')}
-                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                      viewMode === 'preview'
-                        ? 'text-linkedin-600 dark:text-linkedin-400 border-b-2 border-linkedin-600 dark:border-linkedin-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    <Eye className="w-4 h-4" />
-                    Preview
-                  </button>
-                </div>
+            <div className="space-y-4">
+              {/* Account Selection - Moved to top */}
+              <div className="bg-surface rounded-xl shadow-sm border border-border p-4">
+                <AccountSelector
+                  accounts={toolData.accounts}
+                  selectedAccountId={selectedAccountId}
+                  onSelectAccount={setSelectedAccountId}
+                />
               </div>
 
-              {/* Edit View */}
-              {viewMode === 'edit' && (
-                <div className="bg-white dark:bg-gray-800 rounded-b-xl shadow-sm border border-gray-200 dark:border-gray-700 border-t-0 p-6 space-y-6">
-                  {/* Account Selection */}
-                  <AccountSelector
-                    accounts={toolData.accounts}
-                    selectedAccountId={selectedAccountId}
-                    onSelectAccount={setSelectedAccountId}
-                  />
+              {/* Content Editor with Toolbar */}
+              <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
+                {/* LinkedIn Post Preview */}
+                <PostPreview
+                  accountName={selectedAccount?.name || "Your Account"}
+                  content={toolData.content}
+                  imageUrl={currentImage?.url}
+                  carouselImages={carouselImages}
+                  accountAvatarUrl={
+                    'avatarUrl' in (selectedAccount || {})
+                      ? (selectedAccount as any).avatarUrl
+                      : 'logoUrl' in (selectedAccount || {})
+                      ? (selectedAccount as any).logoUrl
+                      : undefined
+                  }
+                  accountHeadline={
+                    'headline' in (selectedAccount || {})
+                      ? (selectedAccount as any).headline
+                      : undefined
+                  }
+                  onRemoveImage={() => setCurrentImage(undefined)}
+                  // Image control props
+                  postType={toolData.postType}
+                  suggestedPrompt={toolData.suggestedImagePrompt}
+                  onGenerateImage={handleGenerateImage}
+                  onUploadImage={handleUploadImage}
+                  isGenerating={generateImage.loading}
+                  allowImageControls={toolData.phase1Features.allowAiGeneration && carouselImages.length === 0}
+                />
 
-                  {/* Divider */}
-                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-                  {/* Content Editor */}
-                  <ContentEditor
-                    content={content}
-                    onContentChange={setContent}
-                  />
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-                  {/* Image Section */}
-                  {toolData.phase1Features.allowAiGeneration && (
-                    <ImageSection
-                      image={currentImage}
-                      postType={toolData.postType}
-                      suggestedPrompt={toolData.suggestedImagePrompt}
-                      onGenerateImage={handleGenerateImage}
-                      onUploadImage={handleUploadImage}
-                      onRemoveImage={() => setCurrentImage(undefined)}
-                      isGenerating={generateImage.loading}
-                      showImageStatus={viewMode === 'edit'}
+                {/* Carousel Image Manager */}
+                {carouselImages.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+                    <CarouselImageManager
+                      images={carouselImages}
+                      onRemoveImage={handleRemoveCarouselImage}
                     />
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* Preview View */}
-              {viewMode === 'preview' && (
-                <div className="bg-white dark:bg-gray-800 rounded-b-xl shadow-sm border border-gray-200 dark:border-gray-700 border-t-0 p-6">
-                  <PostPreview
-                    accountName={selectedAccount?.name || "Your Account"}
-                    content={content}
-                    imageUrl={currentImage?.url}
-                  />
-                </div>
-              )}
-            </>
-          )}
+                {/* Toolbar */}
+                <Toolbar
+                  onGenerateAI={handleGenerateAI}
+                  onAddMedia={handleAddMedia}
+                  onAddDocument={handleAddDocument}
+                  disabled={publishPost.loading}
+                  hasMedia={!!currentImage || carouselImages.length > 0}
+                  mediaType={
+                    carouselImages.length >= 2 ? 'carousel' :
+                    currentImage ? 'image' : null
+                  }
+                />
+              </div>
 
-          {/* Action Buttons - Different for Edit vs Preview */}
-          {publishPost.result?.success ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">
-                      Published successfully!
-                    </h3>
-                    <p className="text-sm text-green-700 dark:text-green-300 mt-1 whitespace-pre-wrap">
-                      {publishPost.result.message}
-                    </p>
-                    {publishPost.result.postUrl && (
-                      <a
-                        href={publishPost.result.postUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
-                      >
-                        View Post on LinkedIn
-                        <Eye className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : publishPost.result && !publishPost.result.success ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-red-900 dark:text-red-100">
-                      Failed to publish
-                    </h3>
-                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                      {publishPost.result.message}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handlePublish}
-                disabled={!canPublish}
-                className="w-full px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : viewMode === 'edit' ? (
-            <button
-              onClick={() => setViewMode('preview')}
-              className="w-full px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 transition-colors flex items-center justify-center gap-2 font-medium"
-            >
-              <Eye className="w-5 h-5" />
-              See Preview
-            </button>
-          ) : (
-            <div className="flex gap-3">
-              <button
-                onClick={() => setViewMode('edit')}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
-              >
-                <Edit3 className="w-4 h-4" />
-                Back
-              </button>
+              {/* Publish Button */}
               <button
                 onClick={handlePublish}
                 disabled={!canPublish || publishPost.loading}
-                className="flex-1 px-6 py-3 bg-linkedin-500 text-white rounded-lg hover:bg-linkedin-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
+                className="w-full px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
               >
                 {publishPost.loading ? (
                   <>
@@ -289,17 +248,80 @@ export default function App() {
             </div>
           )}
 
-          {/* Phase 1 Notice */}
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              <strong>Phase 1 Notice:</strong> Using mock data. See{" "}
-              <code className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">
-                PRD.md
-              </code>{" "}
-              for real API integration.
-            </p>
-          </div>
+          {/* Success Toast Notification - Fixed at bottom */}
+          {publishPost.result?.success && showSuccessToast && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pb-6 pointer-events-none">
+              <div className="relative bg-surface rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 pointer-events-auto border-2 border-success animate-slide-up">
+                {/* Close button */}
+                <button
+                  onClick={() => setShowSuccessToast(false)}
+                  className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+                  aria-label="Close notification"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-success flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-text-primary">
+                      Published successfully!
+                    </h3>
+                    <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                      {publishPost.result.message}
+                    </p>
+                  </div>
+                  {publishPost.result.postUrl && (
+                    <a
+                      href={publishPost.result.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full px-6 py-3 bg-success hover:bg-success-hover text-white rounded-xl transition-colors text-sm font-medium inline-flex items-center justify-center gap-2"
+                    >
+                      View Post on LinkedIn
+                      <Send className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {publishPost.result && !publishPost.result.success && (
+            <div className="p-4 bg-error-surface border border-error rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-error flex items-center justify-center flex-shrink-0">
+                  <X className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-text-primary">
+                    Failed to publish
+                  </h3>
+                  <p className="text-sm text-text-secondary mt-1">
+                    {publishPost.result.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Add Media Modal */}
+        <AddMediaModal
+          isOpen={showAddMediaModal}
+          onClose={() => setShowAddMediaModal(false)}
+          onUploadImages={handleCarouselUpload}
+          onUploadVideo={(file) => {
+            // Phase 3.3: Video upload
+            console.log('Video upload coming in Phase 3.3:', file);
+            alert('Video upload coming in Phase 3.3!');
+          }}
+          isUploading={uploadCarouselImages.loading}
+        />
       </div>
     </div>
   );

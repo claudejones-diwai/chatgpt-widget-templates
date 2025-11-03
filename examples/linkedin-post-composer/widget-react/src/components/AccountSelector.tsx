@@ -17,8 +17,6 @@ interface AccountSelectorProps {
 }
 
 export function AccountSelector({ accounts, selectedAccountId, onSelectAccount }: AccountSelectorProps) {
-  const allAccounts = [accounts.personal, ...accounts.organizations];
-  const selectedAccount = allAccounts.find(acc => acc.id === selectedAccountId) || accounts.personal;
   const isPersonal = selectedAccountId === accounts.personal.id;
 
   return (
@@ -30,7 +28,8 @@ export function AccountSelector({ accounts, selectedAccountId, onSelectAccount }
         <select
           value={selectedAccountId}
           onChange={(e) => onSelectAccount(e.target.value)}
-          className="w-full px-4 py-3 pr-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg appearance-none cursor-pointer hover:border-linkedin-500 dark:hover:border-linkedin-400 focus:outline-none focus:ring-2 focus:ring-linkedin-500 dark:focus:ring-linkedin-400 transition-colors"
+          aria-label="Select LinkedIn account for posting"
+          className="w-full px-4 py-3 pr-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg appearance-none cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
         >
           <option value={accounts.personal.id}>
             {accounts.personal.name} (Personal)
@@ -50,9 +49,6 @@ export function AccountSelector({ accounts, selectedAccountId, onSelectAccount }
           <ChevronDown className="w-4 h-4 text-gray-400" />
         </div>
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {selectedAccount.name}
-      </p>
     </div>
   );
 }

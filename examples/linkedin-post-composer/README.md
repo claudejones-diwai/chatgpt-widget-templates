@@ -2,8 +2,8 @@
 
 Create, preview, and publish LinkedIn posts directly from ChatGPT with AI-powered content and image generation.
 
-![Phase](https://img.shields.io/badge/Phase-1%20MVP-blue)
-![Status](https://img.shields.io/badge/Status-Deployed-success)
+![Phase](https://img.shields.io/badge/Phase-2%20Complete-success)
+![Status](https://img.shields.io/badge/Status-Production-success)
 
 ## 🚀 Quick Start
 
@@ -63,18 +63,20 @@ ChatGPT: [creates professional announcement]
 
 ## 🎯 Features
 
-### Phase 1 (Current) ✅
+### Phase 1 & 2 (Complete) ✅
 - ✅ **Text Posts** - Create and edit LinkedIn posts with character counter (3000 char limit)
-- ✅ **AI Image Generation** - Generate professional images with DALL-E (Phase 1: stub/placeholder)
+- ✅ **AI Image Generation** - Generate professional images with DALL-E 3
 - ✅ **Account Selection** - Post to personal profile or company pages
 - ✅ **Live Preview** - See exactly how your post will look on LinkedIn
 - ✅ **Editable Prompts** - Modify AI image prompts and regenerate
 - ✅ **Dark Mode** - Full dark/light theme support
 - ✅ **Responsive Design** - Works on desktop and mobile
+- ✅ **Real LinkedIn Integration** - OAuth + UGC Posts API
+- ✅ **Image Upload** - Upload images from your device
+- ✅ **Cloudflare R2 Storage** - Permanent image hosting
+- ✅ **Organization Posting** - Post to company pages you admin
 
-### Phase 2 (Planned) 🔮
-- ⏳ **Real LinkedIn Integration** - OAuth + Posts API
-- ⏳ **Real Image Generation** - DALL-E API integration
+### Phase 3 (Future) 🔮
 - ⏳ **Carousel Posts** - Multi-image posts (2-10 images)
 - ⏳ **Video Posts** - Upload and share videos
 - ⏳ **Document Posts** - Share PDFs and presentations
@@ -154,35 +156,75 @@ Opens the LinkedIn Post Composer widget with ChatGPT-refined content.
 - **[API Documentation](./PRD.md#appendix-a-api-documentation-links)** - LinkedIn + OpenAI API docs
 - **[Phase Implementation Plan](./PRD.md#4-phase-implementation-plan)** - Detailed roadmap
 
-## 🛠️ Phase 1 Implementation Notes
+## 🛠️ Phase 2 Setup Instructions
 
-### Current Behavior (Stubs)
-All external API calls return **mock data** with clear messaging:
+### Prerequisites
+You need to set up the following integrations for full functionality:
 
-```typescript
-// Example: Publish Post (Phase 1)
-{
-  "success": true,
-  "postId": "urn:li:share:MOCK_123456789",
-  "postUrl": "https://linkedin.com/feed/update/MOCK_123456789",
-  "message": "✅ Published! (Mock data - see integration file for real API setup)"
-}
-```
+### 1. LinkedIn OAuth Setup
 
-### For Phase 2 Integration
-Replace stubs in [mcp-server/src/integrations/linkedin-api.ts](./mcp-server/src/integrations/linkedin-api.ts):
+**Create LinkedIn Developer App:**
+1. Go to https://www.linkedin.com/developers/apps
+2. Click "Create app"
+3. Fill in app details and create
 
-1. **LinkedIn OAuth Setup**
-   - Client ID + Secret: https://www.linkedin.com/developers/apps
-   - Scopes: `w_member_social` (personal), `w_organization_social` (company)
+**Add Required Products:**
 
-2. **OpenAI API Key**
-   - Get key: https://platform.openai.com/api-keys
-   - Add to Cloudflare Worker environment: `OPENAI_API_KEY`
+Your app needs these two products:
 
-3. **Cloudflare R2 Storage**
-   - Create bucket: `linkedin-post-images`
-   - Add binding to wrangler.toml
+1. **Share on LinkedIn** (Default Tier)
+   - Grants: `w_member_social` (personal posting)
+   - Status: Auto-approved
+
+2. **Advertising API** (Development Tier)
+   - Grants: `w_organization_social`, `r_organization_social` (company page posting)
+   - Status: Requires request (usually auto-approved)
+   - Click "Request access" and fill out the form
+
+**Get Credentials:**
+1. Go to your app → Auth tab
+2. Copy:
+   - Client ID
+   - Client Secret
+3. Add to Cloudflare Workers:
+   ```bash
+   wrangler secret put LINKEDIN_CLIENT_ID
+   wrangler secret put LINKEDIN_CLIENT_SECRET
+   ```
+
+**Authenticate:**
+1. Visit: https://linkedin-post-composer-mcp.claude-8f5.workers.dev/oauth/linkedin
+2. Grant permissions (including organization access)
+3. You'll be redirected back with success message
+
+### 2. OpenAI API Key (DALL-E)
+
+1. Get API key: https://platform.openai.com/api-keys
+2. Add to Cloudflare Worker:
+   ```bash
+   wrangler secret put OPENAI_API_KEY
+   ```
+
+### 3. Cloudflare R2 Storage
+
+1. Create R2 bucket:
+   ```bash
+   wrangler r2 bucket create linkedin-post-images
+   ```
+2. Bucket binding already configured in `wrangler.toml`
+
+### 4. Cloudflare KV Namespace
+
+1. Create KV namespace:
+   ```bash
+   wrangler kv:namespace create OAUTH_TOKENS
+   ```
+2. Add namespace ID to `wrangler.toml`:
+   ```toml
+   [[kv_namespaces]]
+   binding = "OAUTH_TOKENS"
+   id = "YOUR_NAMESPACE_ID"
+   ```
 
 ## 🎨 UI Components
 
@@ -245,16 +287,148 @@ Replace stubs in [mcp-server/src/integrations/linkedin-api.ts](./mcp-server/src/
 - [ ] Success message shows with mock post URL
 - [ ] Error handling works correctly
 
-## 🚨 Known Limitations (Phase 1)
+## 🚨 Current Limitations
 
-- ❌ No real LinkedIn API integration (stubs only)
-- ❌ No real DALL-E image generation (placeholder images)
-- ❌ No image upload functionality (coming in Phase 2)
-- ❌ No draft persistence (publish immediately)
-- ❌ No carousel/video/document posts
-- ❌ No post scheduling
-- ❌ No hashtag suggestions
-- ❌ No @mentions autocomplete
+- ⏳ No draft persistence (posts publish immediately)
+- ⏳ No carousel/video/document posts (Phase 3)
+- ⏳ No post scheduling (Phase 3)
+- ⏳ No hashtag suggestions (Phase 3)
+- ⏳ No @mentions autocomplete (Phase 3)
+- ⏳ Single-tenant mode (one LinkedIn account per deployment)
+
+## 🔧 Troubleshooting
+
+### Company Pages Not Showing in Dropdown
+
+**Problem:** Dropdown only shows personal account, not company pages.
+
+**Solution:**
+1. Verify you have admin access to company pages on LinkedIn
+2. Check OAuth scopes include `rw_organization_admin`
+3. Re-authenticate:
+   ```bash
+   # Clear old token
+   npx wrangler kv key delete "linkedin:{YOUR_USER_ID}" --binding=OAUTH_TOKENS --remote
+
+   # Visit OAuth URL to re-authenticate
+   # https://linkedin-post-composer-mcp.claude-8f5.workers.dev/oauth/linkedin
+   ```
+4. Ensure you approved organization permissions during OAuth
+
+### Image Generation Fails
+
+**Problem:** "Failed to generate image" or OpenAI errors.
+
+**Common Causes:**
+- **Content Policy Violation**: Prompt violates OpenAI's content policy
+  - **Solution**: Modify the prompt to be more general/appropriate
+- **Rate Limiting**: Too many requests in short time
+  - **Solution**: Wait 30-60 seconds and try again
+- **API Key Issues**: Invalid or missing OpenAI API key
+  - **Solution**: Verify `OPENAI_API_KEY` secret is set correctly
+
+**What to do:**
+1. Click "Try Again" in the error message
+2. If error persists, edit the image prompt to be more descriptive/appropriate
+3. Use "Upload Image" instead if AI generation continues to fail
+
+### Publishing to Company Page Fails
+
+**Problem:** "Bad Request" error when publishing to organization.
+
+**Solution:**
+- Ensure you selected the correct company page from dropdown
+- Verify the company page exists and you have admin access
+- Check that `w_organization_social` scope is approved
+- Try publishing to personal profile first to verify API connectivity
+
+### Image Upload Not Working
+
+**Problem:** Upload image button doesn't work or shows errors.
+
+**Solution:**
+- Verify image is JPG, PNG, GIF, or WebP format
+- Check file size is reasonable (< 5MB recommended)
+- Ensure Cloudflare R2 bucket is configured correctly in `wrangler.toml`
+
+**How it works:**
+1. Widget converts uploaded image to base64 data URI
+2. Server automatically detects data URI and uploads to R2
+3. R2 returns permanent URL
+4. Image is then uploaded to LinkedIn with proper ownership
+
+**Note:** The upload flow now handles both AI-generated images (already in R2) and user-uploaded images (base64 data URIs) automatically.
+
+## 🔒 Privacy & Security
+
+### Data Handling
+
+**OAuth Tokens:**
+- Stored in Cloudflare KV (encrypted at rest)
+- Scoped to minimum required permissions (`w_member_social`, `w_organization_social`)
+- Never exposed to client-side code
+- Automatically expire based on LinkedIn's token lifetime
+
+**Image Storage:**
+- Generated/uploaded images stored in Cloudflare R2 with public URLs
+- Images accessible via: `https://linkedin-post-composer-mcp.claude-8f5.workers.dev/images/*`
+- Retention: Images retained indefinitely unless manually deleted
+- Recommended: Implement cleanup policy for old images
+
+**Post Content:**
+- Post text never stored on our servers
+- Content passes directly from ChatGPT → Widget → LinkedIn
+- No analytics or tracking of post content
+
+### Content Security Policy (CSP)
+
+The widget operates with strict CSP restrictions:
+
+**Allowed Domains:**
+- `connect_domains`: `api.openai.com`, `api.linkedin.com`, `linkedin-post-composer-mcp.claude-8f5.workers.dev`
+- `resource_domains`: `linkedin-post-composer-mcp.claude-8f5.workers.dev` (for R2 images)
+
+**Security Measures:**
+- Sandboxed iframe execution
+- No access to privileged browser APIs
+- Server-side input validation and sanitization
+- Rate limiting via LinkedIn/OpenAI API quotas
+
+### Rate Limiting
+
+**DALL-E Image Generation:**
+- Limited by OpenAI API quotas (varies by plan)
+- Recommended: Implement request throttling for production
+
+**LinkedIn Publishing:**
+- Limited by LinkedIn API rate limits
+- Personal accounts: ~100 posts/day
+- Organization accounts: Varies by tier
+
+### Data Retention Policy
+
+**What We Store:**
+- OAuth tokens (until expiration or user revocation)
+- Generated images (indefinitely in R2)
+
+**What We DON'T Store:**
+- Post content or drafts
+- User browsing behavior
+- Analytics or usage metrics
+- Personal information beyond OAuth profile
+
+**User Rights:**
+- Revoke access: Disconnect app in LinkedIn settings
+- Delete images: Contact deployment administrator
+- Data export: OAuth tokens can be exported from KV
+
+### Recommended Production Changes
+
+1. **Add Token Refresh**: Implement automatic OAuth token refresh (currently TODO in [linkedin.ts:136](mcp-server/src/integrations/linkedin.ts#L136))
+2. **Image Cleanup**: Add R2 lifecycle policy to delete images older than 90 days
+3. **Rate Limiting**: Implement server-side request throttling
+4. **Audit Logging**: Log all publish events for compliance
+5. **Multi-Tenant**: Isolate user data with proper KV key namespacing
 
 ## 📦 File Structure
 
@@ -280,11 +454,15 @@ examples/linkedin-post-composer/
 │       ├── tools/
 │       │   └── compose_post.ts
 │       ├── actions/
-│       │   ├── generate-image.ts   ← DALL-E integration (stub)
-│       │   ├── upload-image.ts     ← R2 upload (stub)
-│       │   └── publish-post.ts     ← LinkedIn API (stub)
-│       └── integrations/
-│           └── linkedin-api.ts     ← All stubs here (replace for Phase 2)
+│       │   ├── generate-image.ts   ← DALL-E image generation
+│       │   ├── upload-image.ts     ← R2 image upload
+│       │   └── publish-post.ts     ← LinkedIn publishing
+│       ├── integrations/
+│       │   ├── dalle.ts            ← OpenAI DALL-E 3 integration
+│       │   ├── linkedin-posts-api.ts ← LinkedIn UGC Posts API
+│       │   └── r2-storage.ts       ← Cloudflare R2 storage
+│       └── oauth/
+│           └── linkedin.ts         ← LinkedIn OAuth flow
 └── widget-react/
     ├── package.json
     ├── tsconfig.json

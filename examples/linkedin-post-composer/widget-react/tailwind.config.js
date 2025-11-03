@@ -5,18 +5,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        linkedin: {
-          50: "#e7f3ff",
-          100: "#d0e7ff",
-          200: "#a8d4ff",
-          300: "#74b9ff",
-          400: "#3b94ff",
-          500: "#0A66C2", // LinkedIn brand blue
-          600: "#08529c",
-          700: "#06427d",
-          800: "#053967",
-          900: "#042f54",
-        },
+        // System semantic colors using CSS custom properties
+        'primary': 'rgb(var(--color-primary) / <alpha-value>)',
+        'primary-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
+        'surface': 'rgb(var(--color-surface) / <alpha-value>)',
+        'surface-secondary': 'rgb(var(--color-surface-secondary) / <alpha-value>)',
+        'border': 'rgb(var(--color-border) / <alpha-value>)',
+        'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
+        'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
+        'text-tertiary': 'rgb(var(--color-text-tertiary) / <alpha-value>)',
+        'success': 'rgb(var(--color-success) / <alpha-value>)',
+        'success-hover': 'rgb(var(--color-success-hover) / <alpha-value>)',
+        'error': 'rgb(var(--color-error) / <alpha-value>)',
+        'error-surface': 'rgb(var(--color-error-surface) / <alpha-value>)',
       },
     },
   },
