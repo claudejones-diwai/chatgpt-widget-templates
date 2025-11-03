@@ -1,4 +1,4 @@
-import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X } from "lucide-react";
+import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X, Sparkles, Image as ImageIcon } from "lucide-react";
 import { calculateMultiImageLayout } from "../utils/multiImageLayout";
 
 interface CarouselImage {
@@ -100,65 +100,123 @@ export function PostPreview({
           </div>
         </div>
 
-        {/* Media Area - Shows image or carousel */}
-        {(imageUrl || carouselImages.length > 0) && (
-          <div className="border-t border-gray-200 dark:border-gray-700">
-            {/* Single Image - Show with X overlay */}
-            {imageUrl ? (
-              <div className="w-full h-96 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
-                <img
-                  src={imageUrl}
-                  alt="Post content"
-                  className="w-full h-full object-cover"
-                />
-                {/* Remove Image Button */}
-                {onRemoveImage && (
-                  <button
-                    onClick={onRemoveImage}
-                    className="absolute top-3 right-3 w-8 h-8 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                    aria-label="Remove image"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            ) : carouselImages.length > 0 ? (
-              /* Carousel Images - LinkedIn Layout */
-              (() => {
-                const sortedImages = [...carouselImages].sort((a, b) => a.order - b.order);
-                const layout = calculateMultiImageLayout(sortedImages.length);
-                const visibleImages = sortedImages.slice(0, layout.visibleCount);
+        {/* Media Area - Shows image, carousel, or empty state */}
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          {imageUrl ? (
+            /* Single Image - Show with X overlay */
+            <div className="w-full h-96 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
+              <img
+                src={imageUrl}
+                alt="Post content"
+                className="w-full h-full object-cover"
+              />
+              {/* Remove Image Button */}
+              {onRemoveImage && (
+                <button
+                  onClick={onRemoveImage}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  aria-label="Remove image"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ) : carouselImages.length > 0 ? (
+            /* Carousel Images - LinkedIn Layout */
+            (() => {
+              const sortedImages = [...carouselImages].sort((a, b) => a.order - b.order);
+              const layout = calculateMultiImageLayout(sortedImages.length);
+              const visibleImages = sortedImages.slice(0, layout.visibleCount);
 
-                return (
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                    <div className={`grid ${layout.gridTemplate}`}>
-                      {visibleImages.map((image, index) => (
-                        <div
-                          key={index}
-                          className={`${layout.imageClasses[index]} relative overflow-hidden bg-gray-200 dark:bg-gray-700`}
-                        >
-                          <img
-                            src={image.url}
-                            alt={`Carousel image ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {/* Show "+N" overlay on last image if needed */}
-                          {layout.showOverlay && index === visibleImages.length - 1 && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                              <span className="text-white text-4xl font-bold">
-                                +{layout.overlayCount}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+              return (
+                <div className="w-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <div className={`grid ${layout.gridTemplate}`}>
+                    {visibleImages.map((image, index) => (
+                      <div
+                        key={index}
+                        className={`${layout.imageClasses[index]} relative overflow-hidden bg-gray-200 dark:bg-gray-700`}
+                      >
+                        <img
+                          src={image.url}
+                          alt={`Carousel image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Show "+N" overlay on last image if needed */}
+                        {layout.showOverlay && index === visibleImages.length - 1 && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <span className="text-white text-4xl font-bold">
+                              +{layout.overlayCount}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            /* Empty State - No Media */
+            <div className="w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 py-16 px-6">
+              <div className="max-w-md mx-auto text-center space-y-6">
+                {/* Icons */}
+                <div className="flex items-center justify-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                    <ImageIcon className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Enhance Your Post with Media
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Use the toolbar below to add visual content to your LinkedIn post
+                  </p>
+                </div>
+
+                {/* Instructions */}
+                <div className="space-y-3 text-left bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Generate AI Image
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Click the sparkle icon to create professional images with AI
+                      </p>
                     </div>
                   </div>
-                );
-              })()
-            ) : null}
-          </div>
-        )}
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <ImageIcon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Upload Media
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Click the image icon to upload photos, videos, or create a carousel
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Note */}
+                <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+                  Media is optional - you can publish without it
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Engagement Buttons */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">

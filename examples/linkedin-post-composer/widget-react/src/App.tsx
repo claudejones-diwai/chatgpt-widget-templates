@@ -281,6 +281,7 @@ export default function App() {
                     carouselImages.length >= 2 ? 'carousel' :
                     currentImage ? 'image' : null
                   }
+                  imageSource={currentImage?.source || null}
                   isGeneratingAI={generateImage.loading}
                   isUploadingMedia={uploadCarouselImages.loading}
                 />

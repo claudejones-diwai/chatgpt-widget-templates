@@ -8,6 +8,7 @@ export interface ToolbarProps {
   disabled?: boolean;
   hasMedia?: boolean;
   mediaType?: 'image' | 'carousel' | 'video' | 'document' | null;
+  imageSource?: 'upload' | 'ai-generate' | 'url' | null;
   isGeneratingAI?: boolean;
   isUploadingMedia?: boolean;
 }
@@ -20,9 +21,12 @@ export function Toolbar({
   disabled = false,
   hasMedia = false,
   mediaType = null,
+  imageSource = null,
   isGeneratingAI = false,
   isUploadingMedia = false
 }: ToolbarProps) {
+  // Allow AI regeneration if current image is AI-generated
+  const canGenerateAI = !disabled && !isGeneratingAI && (imageSource === 'ai-generate' || !hasMedia);
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
       <div className="flex items-center justify-between">
@@ -31,17 +35,20 @@ export function Toolbar({
           {/* Generate AI Image */}
           <button
             onClick={onGenerateAI}
-            disabled={disabled || hasMedia || isGeneratingAI}
+            disabled={!canGenerateAI}
             className={`
               p-2.5 rounded-lg transition-colors
-              ${hasMedia || disabled || isGeneratingAI
+              ${!canGenerateAI
                 ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : imageSource === 'ai-generate'
+                  ? 'text-primary bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }
             `}
             aria-label="Generate AI image"
             title={
               isGeneratingAI ? "Generating image..." :
+              imageSource === 'ai-generate' ? "Regenerate AI image with different prompt" :
               hasMedia ? "Remove media to generate AI image" :
               "Generate an image using AI (DALL-E)"
             }
@@ -124,12 +131,13 @@ export function Toolbar({
       {hasMedia && mediaType && (
         <div className="mt-2 space-y-1">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {mediaType === 'image' && 'Single image added. The image icon will replace this image.'}
+            {mediaType === 'image' && imageSource === 'ai-generate' && 'AI-generated image. Click the sparkle icon to regenerate with a new prompt.'}
+            {mediaType === 'image' && imageSource !== 'ai-generate' && 'Single image added. The image icon will replace this image.'}
             {mediaType === 'carousel' && 'Carousel added. Use "+ Add More Images" below to add more (up to 20 total).'}
             {mediaType === 'video' && 'Video added. The image icon will replace this video.'}
             {mediaType === 'document' && 'Document added. The image icon will replace this document.'}
           </p>
-          {(mediaType === 'image' || mediaType === 'video' || mediaType === 'document') && (
+          {(mediaType === 'image' || mediaType === 'video' || mediaType === 'document') && imageSource !== 'ai-generate' && (
             <p className="text-xs text-gray-500 dark:text-gray-400 italic">
               • The sparkle icon (Generate AI) is disabled while media is attached. Remove media to use AI generation.
             </p>
