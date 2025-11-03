@@ -83,11 +83,12 @@ export function AIPromptModal({
               }}
               placeholder="Describe the image you want to generate... (10 characters minimum)"
               rows={4}
+              maxLength={500}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               disabled={isGenerating}
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {prompt.trim().length} characters{prompt.trim().length < 10 ? ' (10 minimum required)' : ''}
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
+              {prompt.length}/500 characters
             </p>
           </div>
 

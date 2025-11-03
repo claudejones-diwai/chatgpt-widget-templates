@@ -8,6 +8,7 @@ import { AddMediaModal } from "./components/AddMediaModal";
 import { AIPromptModal } from "./components/AIPromptModal";
 import { CarouselImageManager } from "./components/CarouselImageManager";
 import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput, UploadCarouselImagesOutput } from "../../shared-types";
+import "react-tooltip/dist/react-tooltip.css";
 
 export default function App() {
   const theme = useTheme();

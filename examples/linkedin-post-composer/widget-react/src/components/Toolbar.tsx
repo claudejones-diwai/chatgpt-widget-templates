@@ -1,4 +1,5 @@
 import { Sparkles, Image, FileText, Clock, Loader2 } from "lucide-react";
+import { Tooltip } from "./Tooltip";
 
 export interface ToolbarProps {
   onGenerateAI: () => void;
@@ -27,6 +28,26 @@ export function Toolbar({
 }: ToolbarProps) {
   // Allow AI regeneration if current image is AI-generated
   const canGenerateAI = !disabled && !isGeneratingAI && (imageSource === 'ai-generate' || !hasMedia);
+
+  // Dynamic tooltip content
+  const generateAITooltip = isGeneratingAI
+    ? "Generating image..."
+    : imageSource === 'ai-generate'
+      ? "Regenerate AI image with different prompt"
+      : hasMedia
+        ? "Remove media to generate AI image"
+        : "Generate an image using AI (DALL-E)";
+
+  const addMediaTooltip = isUploadingMedia
+    ? "Uploading media..."
+    : mediaType === 'carousel'
+      ? "Manage carousel images (2-20 images)"
+      : "Upload images for carousel (2-20) or single video";
+
+  const addDocumentTooltip = hasMedia
+    ? "Remove media to add document"
+    : "Upload a document (PDF, PowerPoint, Word)";
+
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
       <div className="flex items-center justify-between">
@@ -36,6 +57,8 @@ export function Toolbar({
           <button
             onClick={onGenerateAI}
             disabled={!canGenerateAI}
+            data-tooltip-id="toolbar-tooltip"
+            data-tooltip-content={generateAITooltip}
             className={`
               p-2.5 rounded-lg transition-colors
               ${!canGenerateAI
@@ -46,12 +69,6 @@ export function Toolbar({
               }
             `}
             aria-label="Generate AI image"
-            title={
-              isGeneratingAI ? "Generating image..." :
-              imageSource === 'ai-generate' ? "Regenerate AI image with different prompt" :
-              hasMedia ? "Remove media to generate AI image" :
-              "Generate an image using AI (DALL-E)"
-            }
           >
             {isGeneratingAI ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -64,6 +81,8 @@ export function Toolbar({
           <button
             onClick={onAddMedia}
             disabled={disabled || isUploadingMedia}
+            data-tooltip-id="toolbar-tooltip"
+            data-tooltip-content={addMediaTooltip}
             className={`
               p-2.5 rounded-lg transition-colors
               ${disabled || isUploadingMedia
@@ -74,11 +93,6 @@ export function Toolbar({
               }
             `}
             aria-label="Add media"
-            title={
-              isUploadingMedia ? "Uploading media..." :
-              mediaType === 'carousel' ? "Manage carousel images (2-20 images)" :
-              "Upload images for carousel (2-20) or single video"
-            }
           >
             {isUploadingMedia ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -91,6 +105,8 @@ export function Toolbar({
           <button
             onClick={onAddDocument}
             disabled={disabled || hasMedia}
+            data-tooltip-id="toolbar-tooltip"
+            data-tooltip-content={addDocumentTooltip}
             className={`
               p-2.5 rounded-lg transition-colors
               ${hasMedia || disabled
@@ -101,7 +117,6 @@ export function Toolbar({
               }
             `}
             aria-label="Add document"
-            title={hasMedia ? "Remove media to add document" : "Upload a document (PDF, PowerPoint, Word)"}
           >
             <FileText className="w-5 h-5" />
           </button>
@@ -112,6 +127,8 @@ export function Toolbar({
           <button
             onClick={onSchedule}
             disabled={disabled}
+            data-tooltip-id="toolbar-tooltip"
+            data-tooltip-content="Schedule for later"
             className={`
               p-2.5 rounded-lg transition-colors
               ${disabled
@@ -120,30 +137,14 @@ export function Toolbar({
               }
             `}
             aria-label="Schedule post"
-            title="Schedule for later"
           >
             <Clock className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Helper Text */}
-      {hasMedia && mediaType && (
-        <div className="mt-2 space-y-1">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {mediaType === 'image' && imageSource === 'ai-generate' && 'AI-generated image. Click the sparkle icon to regenerate with a new prompt.'}
-            {mediaType === 'image' && imageSource !== 'ai-generate' && 'Single image added. The image icon will replace this image.'}
-            {mediaType === 'carousel' && 'Carousel added. Use "+ Add More Images" below to add more (up to 20 total).'}
-            {mediaType === 'video' && 'Video added. The image icon will replace this video.'}
-            {mediaType === 'document' && 'Document added. The image icon will replace this document.'}
-          </p>
-          {(mediaType === 'image' || mediaType === 'video' || mediaType === 'document') && imageSource !== 'ai-generate' && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-              • The sparkle icon (Generate AI) is disabled while media is attached. Remove media to use AI generation.
-            </p>
-          )}
-        </div>
-      )}
+      {/* Tooltip Component */}
+      <Tooltip id="toolbar-tooltip" place="top" />
     </div>
   );
 }
