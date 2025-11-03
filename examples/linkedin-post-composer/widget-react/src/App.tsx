@@ -52,36 +52,61 @@ export default function App() {
     }
   };
 
-  // Handle carousel images upload
-  const handleCarouselUpload = async (files: File[]) => {
-    // Read all files as data URLs
-    const imageDataPromises = files.map(async (file, index) => {
-      return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            image: reader.result as string,
-            filename: file.name,
-            order: index
-          });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
+  // Handle media upload (single image, carousel, or video)
+  const handleMediaUpload = async (files: File[], mediaType: 'image' | 'carousel' | 'video') => {
+    if (mediaType === 'video') {
+      // Phase 3.3: Video upload
+      console.log('Video upload coming in Phase 3.3:', files[0]);
+      alert('Video upload coming in Phase 3.3!');
+      setShowAddMediaModal(false);
+      return;
+    }
 
-    try {
-      const imageData = await Promise.all(imageDataPromises);
-
-      // Upload to server
-      const result = await uploadCarouselImages.execute({ images: imageData });
-
-      if (result.success && result.data?.images) {
-        setCarouselImages(result.data.images);
+    if (mediaType === 'image') {
+      // Single image upload
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCurrentImage({
+          source: 'upload',
+          url: reader.result as string,
+        });
         setShowAddMediaModal(false);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    if (mediaType === 'carousel') {
+      // Carousel images upload (2-20 images)
+      const imageDataPromises = files.map(async (file, index) => {
+        return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              image: reader.result as string,
+              filename: file.name,
+              order: index
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      try {
+        const imageData = await Promise.all(imageDataPromises);
+
+        // Upload to server
+        const result = await uploadCarouselImages.execute({ images: imageData });
+
+        if (result.success && result.data?.images) {
+          setCarouselImages(result.data.images);
+          setShowAddMediaModal(false);
+        }
+      } catch (error) {
+        console.error('Failed to upload carousel images:', error);
       }
-    } catch (error) {
-      console.error('Failed to upload carousel images:', error);
     }
   };
 
@@ -308,12 +333,7 @@ export default function App() {
         <AddMediaModal
           isOpen={showAddMediaModal}
           onClose={() => setShowAddMediaModal(false)}
-          onUploadImages={handleCarouselUpload}
-          onUploadVideo={(file) => {
-            // Phase 3.3: Video upload
-            console.log('Video upload coming in Phase 3.3:', file);
-            alert('Video upload coming in Phase 3.3!');
-          }}
+          onUploadMedia={handleMediaUpload}
           isUploading={uploadCarouselImages.loading}
         />
       </div>
