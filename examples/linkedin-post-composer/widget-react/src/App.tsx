@@ -22,9 +22,11 @@ export default function App() {
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
   const [showAIPromptModal, setShowAIPromptModal] = useState(false);
   const [mediaModalMode, setMediaModalMode] = useState<'replace' | 'append'>('replace');
+  const [toast, setToast] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
 
   // Server actions
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
+  const uploadImage = useServerAction<{ image: string; filename: string }, { success: boolean; imageUrl?: string; error?: string }>("upload_image");
   const uploadCarouselImages = useServerAction<{ images: { image: string; filename: string; order: number }[] }, UploadCarouselImagesOutput>("upload_carousel_images");
   const publishPost = useServerAction<any, PublishPostOutput>("publish_post");
 
@@ -58,7 +60,7 @@ export default function App() {
     } else {
       // Show error to user
       const errorMessage = result.error || result.data?.error || 'Failed to generate image. Please try again.';
-      alert(`AI Image Generation Failed: ${errorMessage}`);
+      setToast({ type: 'error', message: `AI Image Generation Failed: ${errorMessage}` });
       console.error('AI generation failed:', result);
     }
   };
@@ -68,7 +70,7 @@ export default function App() {
     if (mediaType === 'video') {
       // Phase 3.3: Video upload
       console.log('Video upload coming in Phase 3.3:', files[0]);
-      alert('Video upload coming in Phase 3.3!');
+      setToast({ type: 'info', message: 'Video upload coming in Phase 3.3!' });
       setShowAddMediaModal(false);
       return;
     }
@@ -95,6 +97,31 @@ export default function App() {
 
       // Determine starting order based on mode
       const startingOrder = mediaModalMode === 'append' ? carouselImages.length : 0;
+
+      // Special case: Single image append uses upload_image action
+      if (files.length === 1 && mediaModalMode === 'append') {
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const result = await uploadImage.execute({
+            image: reader.result as string,
+            filename: file.name
+          });
+
+          if (result.success && result.data?.imageUrl) {
+            // Append single image to carousel
+            setCarouselImages(prev => [...prev, {
+              url: result.data!.imageUrl!,
+              order: startingOrder
+            }]);
+            setShowAddMediaModal(false);
+          } else {
+            setToast({ type: 'error', message: 'Failed to upload image. Please try again.' });
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
 
       const imageDataPromises = files.map(async (file, index) => {
         return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
@@ -129,9 +156,12 @@ export default function App() {
             setCarouselImages(prev => [...prev, ...newImages]);
           }
           setShowAddMediaModal(false);
+        } else {
+          setToast({ type: 'error', message: 'Failed to upload images. Please try again.' });
         }
       } catch (error) {
         console.error('Failed to upload carousel images:', error);
+        setToast({ type: 'error', message: 'Failed to upload images. Please try again.' });
       }
     }
   };
@@ -159,7 +189,7 @@ export default function App() {
 
   const handleAddDocument = () => {
     // Phase 3.2: Document upload
-    alert('Document upload coming in Phase 3.2!');
+    setToast({ type: 'info', message: 'Document upload coming in Phase 3.2!' });
   };
 
   const handleRemoveCarouselImage = (order: number) => {
@@ -276,7 +306,7 @@ export default function App() {
                   onGenerateAI={handleGenerateAI}
                   onAddMedia={handleAddMedia}
                   onAddDocument={handleAddDocument}
-                  disabled={publishPost.loading}
+                  disabled={publishPost.loading || generateImage.loading || uploadImage.loading || uploadCarouselImages.loading}
                   hasMedia={!!currentImage || carouselImages.length > 0}
                   mediaType={
                     carouselImages.length >= 2 ? 'carousel' :
@@ -284,7 +314,7 @@ export default function App() {
                   }
                   imageSource={currentImage?.source || null}
                   isGeneratingAI={generateImage.loading}
-                  isUploadingMedia={uploadCarouselImages.loading}
+                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
                 />
               </div>
 
@@ -377,6 +407,7 @@ export default function App() {
           onClose={() => setShowAddMediaModal(false)}
           onUploadMedia={handleMediaUpload}
           isUploading={uploadCarouselImages.loading}
+          mode={mediaModalMode}
         />
 
         {/* AI Prompt Modal */}
@@ -387,6 +418,42 @@ export default function App() {
           suggestedPrompt={toolData?.suggestedImagePrompt}
           isGenerating={generateImage.loading}
         />
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pb-6 pointer-events-none">
+            <div className={`relative bg-surface rounded-xl shadow-2xl max-w-md w-full p-4 space-y-2 pointer-events-auto border-2 ${
+              toast.type === 'error' ? 'border-error' : 'border-primary'
+            } animate-slide-up`}>
+              {/* Close button */}
+              <button
+                onClick={() => setToast(null)}
+                className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+                aria-label="Close notification"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-start gap-3 pr-6">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  toast.type === 'error' ? 'bg-error' : 'bg-primary'
+                }`}>
+                  {toast.type === 'error' ? (
+                    <X className="w-6 h-6 text-white" />
+                  ) : (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 pt-1.5">
+                  <p className="text-sm text-text-primary whitespace-pre-wrap">
+                    {toast.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

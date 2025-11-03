@@ -6,13 +6,15 @@ export interface AddMediaModalProps {
   onClose: () => void;
   onUploadMedia: (files: File[], mediaType: 'image' | 'carousel' | 'video') => void;
   isUploading?: boolean;
+  mode?: 'replace' | 'append';
 }
 
 export function AddMediaModal({
   isOpen,
   onClose,
   onUploadMedia,
-  isUploading = false
+  isUploading = false,
+  mode = 'replace'
 }: AddMediaModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -88,7 +90,11 @@ export function AddMediaModal({
     if (!selectedFiles.length) return;
 
     if (mediaType === 'images') {
-      const type = selectedFiles.length === 1 ? 'image' : 'carousel';
+      // When in append mode, always treat as carousel (even single images)
+      // When in replace mode, single image = 'image', 2+ images = 'carousel'
+      const type = mode === 'append'
+        ? 'carousel'
+        : (selectedFiles.length === 1 ? 'image' : 'carousel');
       onUploadMedia(selectedFiles, type);
     } else if (mediaType === 'video') {
       onUploadMedia(selectedFiles, 'video');
@@ -111,8 +117,8 @@ export function AddMediaModal({
   const canSubmit = selectedFiles.length > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col my-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">

@@ -40,9 +40,7 @@ export function Toolbar({
 
   const addMediaTooltip = isUploadingMedia
     ? "Uploading media..."
-    : mediaType === 'carousel'
-      ? "Manage carousel images (2-20 images)"
-      : "Upload images for carousel (2-20) or single video";
+    : "Upload media for your post";
 
   const addDocumentTooltip = hasMedia
     ? "Remove media to add document"

@@ -1,4 +1,4 @@
-import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X, Sparkles, Image as ImageIcon } from "lucide-react";
+import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X, Sparkles, Image as ImageIcon, FileText } from "lucide-react";
 import { calculateMultiImageLayout } from "../utils/multiImageLayout";
 
 interface CarouselImage {
@@ -159,16 +159,6 @@ export function PostPreview({
             /* Empty State - No Media */
             <div className="w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 py-16 px-6">
               <div className="max-w-md mx-auto text-center space-y-6">
-                {/* Icons */}
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <Sparkles className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                    <ImageIcon className="w-8 h-8 text-white" />
-                  </div>
-                </div>
-
                 {/* Title */}
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -207,6 +197,19 @@ export function PostPreview({
                       </p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Add Document
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Click the document icon to upload PDFs, PowerPoint, or Word files
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Footer Note */}
@@ -221,22 +224,22 @@ export function PostPreview({
         {/* Engagement Buttons */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-around">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 cursor-default">
               <ThumbsUp className="w-4 h-4" />
               Like
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 cursor-default">
               <MessageCircle className="w-4 h-4" />
               Comment
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 cursor-default">
               <Repeat2 className="w-4 h-4" />
               Repost
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 cursor-default">
               <Send className="w-4 h-4" />
               Send
-            </button>
+            </div>
           </div>
         </div>
       </div>
