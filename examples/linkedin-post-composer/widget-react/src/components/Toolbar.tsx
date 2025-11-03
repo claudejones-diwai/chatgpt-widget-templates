@@ -125,13 +125,13 @@ export function Toolbar({
         <div className="mt-2 space-y-1">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {mediaType === 'image' && 'Single image added. Remove to add carousel, video, or generate with AI.'}
-            {mediaType === 'carousel' && 'Carousel added. Click "Add Media" to add more images (up to 20 total).'}
+            {mediaType === 'carousel' && 'Carousel added. Click the image icon to add more images (up to 20 total).'}
             {mediaType === 'video' && 'Video added. Remove to add images, document, or generate with AI.'}
             {mediaType === 'document' && 'Document added. Remove to add other media or generate with AI.'}
           </p>
           {(mediaType === 'image' || mediaType === 'video' || mediaType === 'document') && (
             <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-              • Generate AI is disabled while media is attached. Remove media to use AI generation.
+              • The sparkle icon (Generate AI) is disabled while media is attached. Remove media to use AI generation.
             </p>
           )}
         </div>

@@ -45,12 +45,19 @@ export default function App() {
       size: "1024x1024"
     });
 
+    console.log('AI Generation result:', result);
+
     if (result.success && result.data?.imageUrl) {
       setCurrentImage({
         source: 'ai-generate',
         url: result.data.imageUrl,
         prompt
       });
+    } else {
+      // Show error to user
+      const errorMessage = result.error || result.data?.error || 'Failed to generate image. Please try again.';
+      alert(`AI Image Generation Failed: ${errorMessage}`);
+      console.error('AI generation failed:', result);
     }
   };
 
@@ -117,8 +124,10 @@ export default function App() {
 
     if (mediaType === 'carousel') {
       // Carousel images upload (2-20 images)
-      // Calculate starting order based on existing carousel images
-      const startingOrder = carouselImages.length;
+
+      // Check if there's an existing single image - if so, include it in the carousel
+      const hasExistingSingleImage = currentImage && carouselImages.length === 0;
+      const startingOrder = hasExistingSingleImage ? 1 : carouselImages.length;
 
       const imageDataPromises = files.map(async (file, index) => {
         return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
@@ -136,15 +145,34 @@ export default function App() {
       });
 
       try {
-        const imageData = await Promise.all(imageDataPromises);
+        let imageData = await Promise.all(imageDataPromises);
+
+        // If there's an existing single image, prepend it to the carousel
+        if (hasExistingSingleImage) {
+          imageData = [
+            {
+              image: currentImage.url!,
+              filename: 'existing-image.jpg',
+              order: 0
+            },
+            ...imageData
+          ];
+        }
 
         // Upload to server
         const result = await uploadCarouselImages.execute({ images: imageData });
 
         if (result.success && result.data?.images) {
-          // Append new images to existing carousel instead of replacing
           const newImages = result.data.images;
-          setCarouselImages(prev => [...prev, ...newImages]);
+
+          if (hasExistingSingleImage) {
+            // Clear single image and set carousel
+            setCurrentImage(undefined);
+            setCarouselImages(newImages);
+          } else {
+            // Append new images to existing carousel
+            setCarouselImages(prev => [...prev, ...newImages]);
+          }
           setShowAddMediaModal(false);
         }
       } catch (error) {
@@ -172,7 +200,20 @@ export default function App() {
   };
 
   const handleRemoveCarouselImage = (order: number) => {
-    setCarouselImages(prev => prev.filter(img => img.order !== order));
+    setCarouselImages(prev => {
+      const remaining = prev.filter(img => img.order !== order);
+
+      // If only 1 image remains, convert to single image and clear carousel
+      if (remaining.length === 1) {
+        setCurrentImage({
+          source: 'upload',
+          url: remaining[0].url
+        });
+        return []; // Clear carousel
+      }
+
+      return remaining;
+    });
   };
 
   // Handle publish
