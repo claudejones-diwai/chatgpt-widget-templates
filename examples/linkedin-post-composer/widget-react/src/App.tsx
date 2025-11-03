@@ -20,6 +20,7 @@ export default function App() {
   const [showSuccessToast, setShowSuccessToast] = useState(true);
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
   const [showAIPromptModal, setShowAIPromptModal] = useState(false);
+  const [mediaModalMode, setMediaModalMode] = useState<'replace' | 'append'>('replace');
 
   // Server actions
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
@@ -72,50 +73,16 @@ export default function App() {
     }
 
     if (mediaType === 'image') {
-      // Single image upload
+      // Single image upload - always replaces existing media
       const file = files[0];
-
-      // If there's already a single image, upgrade to a 2-image carousel
-      if (currentImage) {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          // Create carousel with existing image + new image
-          const imageData = [
-            {
-              image: currentImage.url!,
-              filename: 'existing-image.jpg',
-              order: 0
-            },
-            {
-              image: reader.result as string,
-              filename: file.name,
-              order: 1
-            }
-          ];
-
-          try {
-            const result = await uploadCarouselImages.execute({ images: imageData });
-            if (result.success && result.data?.images) {
-              // Clear single image and set carousel
-              setCurrentImage(undefined);
-              setCarouselImages(result.data.images);
-              setShowAddMediaModal(false);
-            }
-          } catch (error) {
-            console.error('Failed to upgrade to carousel:', error);
-          }
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-
-      // No existing image, just set as single image
       const reader = new FileReader();
       reader.onload = () => {
+        // Clear any existing media and set new single image
         setCurrentImage({
           source: 'upload',
           url: reader.result as string,
         });
+        setCarouselImages([]); // Clear carousel if exists
         setShowAddMediaModal(false);
       };
       reader.readAsDataURL(file);
@@ -125,9 +92,8 @@ export default function App() {
     if (mediaType === 'carousel') {
       // Carousel images upload (2-20 images)
 
-      // Check if there's an existing single image - if so, include it in the carousel
-      const hasExistingSingleImage = currentImage && carouselImages.length === 0;
-      const startingOrder = hasExistingSingleImage ? 1 : carouselImages.length;
+      // Determine starting order based on mode
+      const startingOrder = mediaModalMode === 'append' ? carouselImages.length : 0;
 
       const imageDataPromises = files.map(async (file, index) => {
         return new Promise<{ image: string; filename: string; order: number }>((resolve, reject) => {
@@ -136,7 +102,7 @@ export default function App() {
             resolve({
               image: reader.result as string,
               filename: file.name,
-              order: startingOrder + index  // Append with correct sequential order
+              order: startingOrder + index
             });
           };
           reader.onerror = reject;
@@ -145,19 +111,7 @@ export default function App() {
       });
 
       try {
-        let imageData = await Promise.all(imageDataPromises);
-
-        // If there's an existing single image, prepend it to the carousel
-        if (hasExistingSingleImage) {
-          imageData = [
-            {
-              image: currentImage.url!,
-              filename: 'existing-image.jpg',
-              order: 0
-            },
-            ...imageData
-          ];
-        }
+        const imageData = await Promise.all(imageDataPromises);
 
         // Upload to server
         const result = await uploadCarouselImages.execute({ images: imageData });
@@ -165,9 +119,9 @@ export default function App() {
         if (result.success && result.data?.images) {
           const newImages = result.data.images;
 
-          if (hasExistingSingleImage) {
-            // Clear single image and set carousel
-            setCurrentImage(undefined);
+          if (mediaModalMode === 'replace') {
+            // Replace all media with new carousel
+            setCurrentImage(undefined); // Clear single image if exists
             setCarouselImages(newImages);
           } else {
             // Append new images to existing carousel
@@ -191,6 +145,14 @@ export default function App() {
   };
 
   const handleAddMedia = () => {
+    // Toolbar image icon - always replaces media
+    setMediaModalMode('replace');
+    setShowAddMediaModal(true);
+  };
+
+  const handleAddMoreToCarousel = () => {
+    // Carousel "+ Add More" button - appends to carousel
+    setMediaModalMode('append');
     setShowAddMediaModal(true);
   };
 
@@ -303,6 +265,7 @@ export default function App() {
                     <CarouselImageManager
                       images={carouselImages}
                       onRemoveImage={handleRemoveCarouselImage}
+                      onAddMore={handleAddMoreToCarousel}
                     />
                   </div>
                 )}

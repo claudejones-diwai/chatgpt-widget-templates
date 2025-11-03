@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 
 export interface CarouselImage {
   url: string;
@@ -8,6 +8,7 @@ export interface CarouselImage {
 export interface CarouselImageManagerProps {
   images: CarouselImage[];
   onRemoveImage: (order: number) => void;
+  onAddMore?: () => void;
   onReorder?: (images: CarouselImage[]) => void;
   maxImages?: number;
 }
@@ -15,6 +16,7 @@ export interface CarouselImageManagerProps {
 export function CarouselImageManager({
   images,
   onRemoveImage,
+  onAddMore,
   maxImages = 20
 }: CarouselImageManagerProps) {
   if (images.length === 0) return null;
@@ -29,11 +31,20 @@ export function CarouselImageManager({
         <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
           Carousel Images ({images.length} of {maxImages})
         </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {images.length < 2 && 'Minimum 2 images required'}
-          {images.length >= 2 && images.length < maxImages && 'Click "Add Media" to add more'}
-          {images.length === maxImages && 'Maximum images reached'}
-        </p>
+        {images.length < maxImages && onAddMore && (
+          <button
+            onClick={onAddMore}
+            className="flex items-center gap-1 text-sm text-primary hover:underline font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add More Images
+          </button>
+        )}
+        {images.length === maxImages && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Maximum images reached
+          </p>
+        )}
       </div>
 
       {/* Image Grid */}
