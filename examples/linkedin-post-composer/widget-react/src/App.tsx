@@ -52,16 +52,6 @@ export default function App() {
     }
   };
 
-  // Handle image upload
-  const handleUploadImage = (_file: File, dataUrl: string) => {
-    // For Phase 1, use the data URL directly for preview
-    // In Phase 2, we'll call the upload_image server action with the file
-    setCurrentImage({
-      source: 'upload',
-      url: dataUrl,
-    });
-  };
-
   // Handle carousel images upload
   const handleCarouselUpload = async (files: File[]) => {
     // Read all files as data URLs
@@ -96,10 +86,21 @@ export default function App() {
   };
 
   // Toolbar handlers
-  const handleGenerateAI = () => {
-    // Open the prompt editor in PostPreview
-    // This is handled by PostPreview's internal state
-    // For now, we can just scroll to the preview section
+  const handleGenerateAI = async () => {
+    if (!toolData) return;
+
+    // Use ChatGPT's suggested image prompt if available
+    const prompt = toolData.suggestedImagePrompt ||
+      window.prompt(
+        'Enter a description for the AI image generation:',
+        'Professional workspace with modern design elements'
+      );
+
+    if (prompt && prompt.trim().length >= 10) {
+      await handleGenerateImage(prompt.trim());
+    } else if (prompt) {
+      alert('Please enter at least 10 characters for the image prompt');
+    }
   };
 
   const handleAddMedia = () => {
@@ -194,13 +195,6 @@ export default function App() {
                       : undefined
                   }
                   onRemoveImage={() => setCurrentImage(undefined)}
-                  // Image control props
-                  postType={toolData.postType}
-                  suggestedPrompt={toolData.suggestedImagePrompt}
-                  onGenerateImage={handleGenerateImage}
-                  onUploadImage={handleUploadImage}
-                  isGenerating={generateImage.loading}
-                  allowImageControls={toolData.phase1Features.allowAiGeneration && carouselImages.length === 0}
                 />
 
                 {/* Carousel Image Manager */}

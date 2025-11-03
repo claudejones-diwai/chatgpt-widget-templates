@@ -36,7 +36,7 @@ export function Toolbar({
               }
             `}
             aria-label="Generate AI image"
-            title="Generate image with AI"
+            title={hasMedia ? "Remove media to generate AI image" : "Generate an image using AI (DALL-E)"}
           >
             <Sparkles className="w-5 h-5" />
           </button>
@@ -55,7 +55,7 @@ export function Toolbar({
               }
             `}
             aria-label="Add media"
-            title="Upload images or video"
+            title={mediaType === 'carousel' ? "Manage carousel images (2-20 images)" : "Upload images for carousel (2-20) or single video"}
           >
             <Image className="w-5 h-5" />
           </button>
@@ -74,7 +74,7 @@ export function Toolbar({
               }
             `}
             aria-label="Add document"
-            title="Upload document (PDF, DOC, PPT)"
+            title={hasMedia ? "Remove media to add document" : "Upload a document (PDF, PowerPoint, Word)"}
           >
             <FileText className="w-5 h-5" />
           </button>
