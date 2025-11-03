@@ -5,6 +5,7 @@ import { handleComposePost } from "./tools/compose_post";
 import { handleGenerateImage } from "./actions/generate-image";
 import { handleUploadImage } from "./actions/upload-image";
 import { handleUploadCarouselImages } from "./actions/upload-carousel-images";
+import { handleUploadDocument } from "./actions/upload-document";
 import { handlePublishPost } from "./actions/publish-post";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
@@ -553,6 +554,32 @@ export default {
                     },
                   },
                   {
+                    name: "upload_document",
+                    description: "Upload document (PDF, Word, PowerPoint) to Cloudflare R2 storage (server action)",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        document: {
+                          type: "string",
+                          description: "Base64 encoded document data (with data:application/... prefix)",
+                        },
+                        filename: {
+                          type: "string",
+                          description: "Original filename",
+                        },
+                        fileType: {
+                          type: "string",
+                          description: "MIME type of the document",
+                        },
+                        fileSize: {
+                          type: "number",
+                          description: "File size in bytes",
+                        },
+                      },
+                      required: ["document", "filename", "fileType", "fileSize"],
+                    },
+                  },
+                  {
                     name: "publish_post",
                     description: "Publish post to LinkedIn (server action)",
                     inputSchema: {
@@ -579,9 +606,13 @@ export default {
                           minItems: 2,
                           maxItems: 20,
                         },
+                        documentUrl: {
+                          type: "string",
+                          description: "Document URL (optional, for document posts)",
+                        },
                         postType: {
                           type: "string",
-                          enum: ["text", "image", "carousel"],
+                          enum: ["text", "image", "carousel", "document"],
                         },
                       },
                       required: ["accountId", "content", "postType"],
@@ -718,6 +749,17 @@ export default {
                   toolResult = await handleUploadCarouselImages(toolArgs, env);
                   textMessage = toolResult.success
                     ? toolResult.message || `Successfully uploaded ${toolResult.images?.length} carousel images!`
+                    : `Error: ${toolResult.error}`;
+                  result = {
+                    content: [{ type: "text", text: textMessage }],
+                    structuredContent: toolResult,
+                  };
+                  break;
+
+                case "upload_document":
+                  toolResult = await handleUploadDocument(toolArgs, env);
+                  textMessage = toolResult.success
+                    ? `Document uploaded successfully!`
                     : `Error: ${toolResult.error}`;
                   result = {
                     content: [{ type: "text", text: textMessage }],

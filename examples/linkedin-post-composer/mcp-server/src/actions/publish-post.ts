@@ -8,11 +8,12 @@ export interface PublishPostParams {
   content: string;
   imageUrl?: string;
   carouselImageUrls?: string[];  // For carousel posts (2-20 images)
-  postType: 'text' | 'image' | 'carousel';
+  documentUrl?: string;  // For document posts
+  postType: 'text' | 'image' | 'carousel' | 'document';
 }
 
 export async function handlePublishPost(params: PublishPostParams, env: Env): Promise<PublishPostOutput> {
-  const { accountId, content, imageUrl, carouselImageUrls, postType } = params;
+  const { accountId, content, imageUrl, carouselImageUrls, documentUrl, postType } = params;
 
   // Validate content
   if (!content || content.trim().length === 0) {
@@ -56,6 +57,15 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
         error: 'CAROUSEL_TOO_MANY_IMAGES'
       };
     }
+  }
+
+  // Validate document for document posts
+  if (postType === 'document' && !documentUrl) {
+    return {
+      success: false,
+      message: 'Document URL is required for document posts',
+      error: 'DOCUMENT_REQUIRED'
+    };
   }
 
   // Get authenticated user ID from KV storage
@@ -178,6 +188,24 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
         error: result.error
       };
     }
+  }
+
+  // Handle document posts
+  if (postType === 'document' && documentUrl) {
+    // TODO: Implement LinkedIn Documents API integration
+    // Document posts require:
+    // 1. Initialize document upload via LinkedIn Documents API
+    // 2. Upload document binary to LinkedIn
+    // 3. Get document URN
+    // 4. Create post with document URN
+    //
+    // For now, return a placeholder indicating document upload is ready
+    // but LinkedIn Documents API integration is needed
+    return {
+      success: false,
+      message: 'Document post publishing requires LinkedIn Documents API integration (Phase 3.2). Document uploaded to R2 storage successfully at: ' + documentUrl,
+      error: 'DOCUMENTS_API_NOT_IMPLEMENTED'
+    };
   }
 
   // Publish single-image or text post using LinkedIn Posts API

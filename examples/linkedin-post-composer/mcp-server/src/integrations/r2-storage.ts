@@ -9,6 +9,12 @@ export interface UploadToR2Args {
   contentType: string;
 }
 
+export interface UploadDocumentToR2Args {
+  documentData: ArrayBuffer | Uint8Array;
+  fileName: string;
+  contentType: string;
+}
+
 export interface UploadToR2Response {
   success: boolean;
   publicUrl?: string;
@@ -57,6 +63,42 @@ export class R2ImageStorage {
       return {
         success: false,
         error: error.message || 'Failed to upload image to storage',
+      };
+    }
+  }
+
+  /**
+   * Upload document to R2 storage
+   * @param args - Document data, filename, and content type
+   * @returns Public URL and storage key
+   */
+  async uploadDocument(args: UploadDocumentToR2Args): Promise<UploadToR2Response> {
+    try {
+      // Generate unique key with timestamp to avoid collisions
+      const timestamp = Date.now();
+      const sanitizedFileName = args.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const key = `linkedin-documents/${timestamp}-${sanitizedFileName}`;
+
+      // Upload to R2
+      await this.env.IMAGE_BUCKET.put(key, args.documentData, {
+        httpMetadata: {
+          contentType: args.contentType,
+        },
+      });
+
+      // Return public URL
+      const publicUrl = `${this.publicUrlBase}/${key}`;
+
+      return {
+        success: true,
+        publicUrl,
+        key,
+      };
+    } catch (error: any) {
+      console.error('R2 document upload error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to upload document to storage',
       };
     }
   }

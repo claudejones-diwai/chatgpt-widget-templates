@@ -6,14 +6,23 @@ interface CarouselImage {
   order: number;
 }
 
+interface DocumentPreview {
+  url?: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 interface PostPreviewProps {
   accountName: string;
   content: string;
   imageUrl?: string;
   carouselImages?: CarouselImage[];
+  document?: DocumentPreview | null;
   accountAvatarUrl?: string;
   accountHeadline?: string;
   onRemoveImage?: () => void;
+  onRemoveDocument?: () => void;
 }
 
 export function PostPreview({
@@ -21,11 +30,13 @@ export function PostPreview({
   content,
   imageUrl,
   carouselImages = [],
+  document,
   accountAvatarUrl,
   accountHeadline,
   onRemoveImage,
+  onRemoveDocument,
 }: PostPreviewProps) {
-  const isEmpty = !content.trim() && !imageUrl && carouselImages.length === 0;
+  const isEmpty = !content.trim() && !imageUrl && carouselImages.length === 0 && !document;
 
   return (
     <div className="space-y-3">
@@ -100,9 +111,52 @@ export function PostPreview({
           </div>
         </div>
 
-        {/* Media Area - Shows image, carousel, or empty state */}
+        {/* Media Area - Shows image, carousel, document, or empty state */}
         <div className="border-t border-gray-200 dark:border-gray-700">
-          {imageUrl ? (
+          {document ? (
+            /* Document Preview */
+            <div className="w-full bg-gray-50 dark:bg-gray-800 p-6 relative group">
+              <div className="max-w-md mx-auto">
+                <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-start gap-4">
+                    {/* Document Icon */}
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      document.type === 'application/pdf' ? 'bg-red-500' :
+                      document.type.includes('word') ? 'bg-blue-500' :
+                      document.type.includes('presentation') || document.type.includes('powerpoint') ? 'bg-orange-500' :
+                      'bg-gray-500'
+                    }`}>
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+
+                    {/* Document Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {document.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {document.type === 'application/pdf' ? 'PDF Document' :
+                         document.type.includes('word') ? 'Word Document' :
+                         document.type.includes('presentation') || document.type.includes('powerpoint') ? 'PowerPoint Presentation' :
+                         'Document'} • {(document.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Remove Document Button */}
+              {onRemoveDocument && (
+                <button
+                  onClick={onRemoveDocument}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  aria-label="Remove document"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ) : imageUrl ? (
             /* Single Image - Show with X overlay */
             <div className="w-full h-96 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
               <img

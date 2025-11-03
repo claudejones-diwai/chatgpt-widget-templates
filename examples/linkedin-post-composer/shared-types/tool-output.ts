@@ -95,6 +95,13 @@ export interface UploadCarouselImagesOutput {
   message?: string;
 }
 
+export interface UploadDocumentOutput {
+  success: boolean;
+  documentUrl?: string;   // Public URL from R2
+  documentKey?: string;   // Storage key
+  error?: string;
+}
+
 export interface PublishPostOutput {
   success: boolean;
   postId?: string;        // LinkedIn post URN

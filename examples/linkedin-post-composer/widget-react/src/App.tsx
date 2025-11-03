@@ -5,6 +5,7 @@ import { AccountSelector } from "./components/AccountSelector";
 import { PostPreview } from "./components/PostPreview";
 import { Toolbar } from "./components/Toolbar";
 import { AddMediaModal } from "./components/AddMediaModal";
+import { AddDocumentModal } from "./components/AddDocumentModal";
 import { AIPromptModal } from "./components/AIPromptModal";
 import { CarouselImageManager } from "./components/CarouselImageManager";
 import type { ComposeLinkedInPostOutput, GenerateImageOutput, PublishPostOutput, UploadCarouselImagesOutput } from "../../shared-types";
@@ -18,8 +19,10 @@ export default function App() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [currentImage, setCurrentImage] = useState<{ source: 'upload' | 'ai-generate' | 'url'; url?: string; prompt?: string }>();
   const [carouselImages, setCarouselImages] = useState<{ url: string; order: number }[]>([]);
+  const [currentDocument, setCurrentDocument] = useState<{ url?: string; name: string; type: string; size: number } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(true);
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
+  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
   const [showAIPromptModal, setShowAIPromptModal] = useState(false);
   const [mediaModalMode, setMediaModalMode] = useState<'replace' | 'append'>('replace');
   const [toast, setToast] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
@@ -28,6 +31,7 @@ export default function App() {
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
   const uploadImage = useServerAction<{ image: string; filename: string }, { success: boolean; imageUrl?: string; error?: string }>("upload_image");
   const uploadCarouselImages = useServerAction<{ images: { image: string; filename: string; order: number }[] }, UploadCarouselImagesOutput>("upload_carousel_images");
+  const uploadDocument = useServerAction<{ document: string; filename: string; fileType: string; fileSize: number }, { success: boolean; documentUrl?: string; error?: string }>("upload_document");
   const publishPost = useServerAction<any, PublishPostOutput>("publish_post");
 
   // Initialize from tool data
@@ -188,8 +192,36 @@ export default function App() {
   };
 
   const handleAddDocument = () => {
-    // Phase 3.2: Document upload
-    setToast({ type: 'info', message: 'Document upload coming in Phase 3.2!' });
+    setShowAddDocumentModal(true);
+  };
+
+  // Handle document upload
+  const handleDocumentUpload = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const result = await uploadDocument.execute({
+        document: reader.result as string,
+        filename: file.name,
+        fileType: file.type,
+        fileSize: file.size
+      });
+
+      if (result.success && result.data?.documentUrl) {
+        // Clear any existing media and set document
+        setCurrentImage(undefined);
+        setCarouselImages([]);
+        setCurrentDocument({
+          url: result.data.documentUrl,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        });
+        setShowAddDocumentModal(false);
+      } else {
+        setToast({ type: 'error', message: 'Failed to upload document. Please try again.' });
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRemoveCarouselImage = (order: number) => {
@@ -213,9 +245,11 @@ export default function App() {
   const handlePublish = async () => {
     if (!toolData) return;
 
-    let postType: 'text' | 'image' | 'carousel' = 'text';
+    let postType: 'text' | 'image' | 'carousel' | 'document' = 'text';
 
-    if (carouselImages.length >= 2) {
+    if (currentDocument) {
+      postType = 'document';
+    } else if (carouselImages.length >= 2) {
       postType = 'carousel';
     } else if (currentImage) {
       postType = 'image';
@@ -226,6 +260,7 @@ export default function App() {
       content: toolData.content,
       imageUrl: currentImage?.url,
       carouselImageUrls: carouselImages.map(img => img.url),
+      documentUrl: currentDocument?.url,
       postType
     });
   };
@@ -275,6 +310,7 @@ export default function App() {
                   content={toolData.content}
                   imageUrl={currentImage?.url}
                   carouselImages={carouselImages}
+                  document={currentDocument}
                   accountAvatarUrl={
                     'avatarUrl' in (selectedAccount || {})
                       ? (selectedAccount as any).avatarUrl
@@ -288,6 +324,7 @@ export default function App() {
                       : undefined
                   }
                   onRemoveImage={() => setCurrentImage(undefined)}
+                  onRemoveDocument={() => setCurrentDocument(null)}
                 />
 
                 {/* Carousel Image Manager */}
@@ -306,15 +343,16 @@ export default function App() {
                   onGenerateAI={handleGenerateAI}
                   onAddMedia={handleAddMedia}
                   onAddDocument={handleAddDocument}
-                  disabled={publishPost.loading || generateImage.loading || uploadImage.loading || uploadCarouselImages.loading}
-                  hasMedia={!!currentImage || carouselImages.length > 0}
+                  disabled={publishPost.loading || generateImage.loading || uploadImage.loading || uploadCarouselImages.loading || uploadDocument.loading}
+                  hasMedia={!!currentImage || carouselImages.length > 0 || !!currentDocument}
                   mediaType={
+                    currentDocument ? 'document' :
                     carouselImages.length >= 2 ? 'carousel' :
                     currentImage ? 'image' : null
                   }
                   imageSource={currentImage?.source || null}
                   isGeneratingAI={generateImage.loading}
-                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
+                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading || uploadDocument.loading}
                 />
               </div>
 
@@ -408,6 +446,14 @@ export default function App() {
           onUploadMedia={handleMediaUpload}
           isUploading={uploadCarouselImages.loading}
           mode={mediaModalMode}
+        />
+
+        {/* Add Document Modal */}
+        <AddDocumentModal
+          isOpen={showAddDocumentModal}
+          onClose={() => setShowAddDocumentModal(false)}
+          onUploadDocument={handleDocumentUpload}
+          isUploading={uploadDocument.loading}
         />
 
         {/* AI Prompt Modal */}
