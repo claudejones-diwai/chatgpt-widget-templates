@@ -12,6 +12,7 @@ export interface ToolbarProps {
   imageSource?: 'upload' | 'ai-generate' | 'url' | null;
   isGeneratingAI?: boolean;
   isUploadingMedia?: boolean;
+  isUploadingDocument?: boolean;
 }
 
 export function Toolbar({
@@ -24,7 +25,8 @@ export function Toolbar({
   mediaType = null,
   imageSource = null,
   isGeneratingAI = false,
-  isUploadingMedia = false
+  isUploadingMedia = false,
+  isUploadingDocument = false
 }: ToolbarProps) {
   // Allow AI regeneration if current image is AI-generated
   const canGenerateAI = !disabled && !isGeneratingAI && (imageSource === 'ai-generate' || !hasMedia);
@@ -42,9 +44,11 @@ export function Toolbar({
     ? "Uploading media..."
     : "Upload media for your post";
 
-  const addDocumentTooltip = hasMedia
-    ? "Remove media to add document"
-    : "Upload a document (PDF, PowerPoint, Word)";
+  const addDocumentTooltip = isUploadingDocument
+    ? "Uploading document..."
+    : hasMedia
+      ? "Remove media to add document"
+      : "Upload a document (PDF, PowerPoint, Word)";
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
@@ -102,12 +106,12 @@ export function Toolbar({
           {/* Add Document */}
           <button
             onClick={onAddDocument}
-            disabled={disabled || hasMedia}
+            disabled={disabled || hasMedia || isUploadingDocument}
             data-tooltip-id="toolbar-tooltip"
             data-tooltip-content={addDocumentTooltip}
             className={`
               p-2.5 rounded-lg transition-colors
-              ${hasMedia || disabled
+              ${hasMedia || disabled || isUploadingDocument
                 ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                 : mediaType === 'document'
                   ? 'text-primary bg-blue-50 dark:bg-blue-900/20'
@@ -116,7 +120,11 @@ export function Toolbar({
             `}
             aria-label="Add document"
           >
-            <FileText className="w-5 h-5" />
+            {isUploadingDocument ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <FileText className="w-5 h-5" />
+            )}
           </button>
         </div>
 

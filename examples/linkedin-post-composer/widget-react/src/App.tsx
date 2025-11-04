@@ -352,7 +352,8 @@ export default function App() {
                   }
                   imageSource={currentImage?.source || null}
                   isGeneratingAI={generateImage.loading}
-                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading || uploadDocument.loading}
+                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
+                  isUploadingDocument={uploadDocument.loading}
                 />
               </div>
 
