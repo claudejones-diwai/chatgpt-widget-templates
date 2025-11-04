@@ -1,6 +1,7 @@
 import type { PublishPostOutput } from '../../../shared-types';
 import { LinkedInPostsAPI } from '../integrations/linkedin-posts-api';
 import { LinkedInMultiImageAPI } from '../integrations/linkedin-multiimage-api';
+import { LinkedInDocumentsAPI } from '../integrations/linkedin-documents-api';
 import type { Env } from '../index';
 
 export interface PublishPostParams {
@@ -246,20 +247,45 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
       console.log('Document uploaded to R2:', r2DocumentUrl);
     }
 
-    // TODO: Implement LinkedIn Documents API integration
-    // Document posts require:
-    // 1. Initialize document upload via LinkedIn Documents API
-    // 2. Upload document binary to LinkedIn
-    // 3. Get document URN
-    // 4. Create post with document URN
-    //
-    // For now, return a placeholder indicating document upload is ready
-    // but LinkedIn Documents API integration is needed
-    return {
-      success: false,
-      message: 'Document post publishing requires LinkedIn Documents API integration (Phase 3.2). Document uploaded to R2 storage successfully at: ' + r2DocumentUrl,
-      error: 'DOCUMENTS_API_NOT_IMPLEMENTED'
-    };
+    // Use LinkedIn Documents API to upload and publish
+    const documentsAPI = new LinkedInDocumentsAPI(env);
+
+    // Extract filename from R2 URL for document title
+    // URL format: https://.../images/linkedin-documents/1234567890-document-1234567890.pdf
+    const urlParts = r2DocumentUrl.split('/');
+    const fileNameWithTimestamp = urlParts[urlParts.length - 1];
+    // Remove timestamp prefix (format: timestamp-document-timestamp.ext)
+    const fileName = fileNameWithTimestamp.replace(/^\d+-/, '');
+    const documentTitle = fileName.split('.')[0] || 'Document';
+
+    console.log('Publishing document post:', {
+      documentUrl: r2DocumentUrl,
+      documentTitle,
+      author: accountId,
+    });
+
+    const result = await documentsAPI.uploadAndCreatePost({
+      userId,
+      documentUrl: r2DocumentUrl,
+      authorUrn: accountId,
+      title: documentTitle,
+      content,
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        postId: result.postId,
+        postUrl: result.postUrl,
+        message: 'Document post published successfully to LinkedIn!',
+      };
+    } else {
+      return {
+        success: false,
+        message: result.error || 'Failed to publish document post',
+        error: result.error,
+      };
+    }
   }
 
   // Publish single-image or text post using LinkedIn Posts API
