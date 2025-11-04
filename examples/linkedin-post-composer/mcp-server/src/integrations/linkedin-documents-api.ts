@@ -139,13 +139,18 @@ export class LinkedInDocumentsAPI {
       console.log('Uploading document to LinkedIn, URN:', uploadInfo.documentUrn);
 
       // Step 3: Upload document binary to LinkedIn's upload URL
+      console.log('Starting document binary upload, size:', documentData.byteLength, 'bytes');
+
       const uploadResponse = await fetch(uploadInfo.uploadUrl, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': documentObject.httpMetadata?.contentType || 'application/pdf',
         },
         body: documentData,
       });
+
+      console.log('Upload response status:', uploadResponse.status);
 
       if (!uploadResponse.ok) {
         const error = await uploadResponse.text();
@@ -157,6 +162,7 @@ export class LinkedInDocumentsAPI {
       return uploadInfo.documentUrn;
     } catch (error: any) {
       console.error('Error uploading document to LinkedIn:', error);
+      console.error('Error stack:', error.stack);
       return null;
     }
   }
@@ -245,28 +251,49 @@ export class LinkedInDocumentsAPI {
    * Complete flow: Upload document and create post
    */
   async uploadAndCreatePost(args: UploadDocumentArgs & { content: string }): Promise<DocumentPostResponse> {
-    // Step 1: Upload document to LinkedIn
-    const documentUrn = await this.uploadDocument({
-      userId: args.userId,
-      documentUrl: args.documentUrl,
-      authorUrn: args.authorUrn,
-      title: args.title,
-    });
+    try {
+      console.log('[uploadAndCreatePost] Starting flow with args:', {
+        documentUrl: args.documentUrl?.substring(0, 50) + '...',
+        authorUrn: args.authorUrn,
+        title: args.title,
+      });
 
-    if (!documentUrn) {
+      // Step 1: Upload document to LinkedIn
+      const documentUrn = await this.uploadDocument({
+        userId: args.userId,
+        documentUrl: args.documentUrl,
+        authorUrn: args.authorUrn,
+        title: args.title,
+      });
+
+      if (!documentUrn) {
+        console.error('[uploadAndCreatePost] Document upload failed');
+        return {
+          success: false,
+          error: 'Failed to upload document to LinkedIn',
+        };
+      }
+
+      console.log('[uploadAndCreatePost] Document uploaded, creating post...');
+
+      // Step 2: Create post with document
+      const result = await this.createDocumentPost({
+        userId: args.userId,
+        authorUrn: args.authorUrn,
+        content: args.content,
+        documentUrn,
+        documentTitle: args.title,
+      });
+
+      console.log('[uploadAndCreatePost] Flow completed:', result.success ? 'success' : 'failed');
+      return result;
+    } catch (error: any) {
+      console.error('[uploadAndCreatePost] Unexpected error:', error);
+      console.error('[uploadAndCreatePost] Error stack:', error.stack);
       return {
         success: false,
-        error: 'Failed to upload document to LinkedIn',
+        error: error.message || 'Unexpected error during document post creation',
       };
     }
-
-    // Step 2: Create post with document
-    return await this.createDocumentPost({
-      userId: args.userId,
-      authorUrn: args.authorUrn,
-      content: args.content,
-      documentUrn,
-      documentTitle: args.title,
-    });
   }
 }
