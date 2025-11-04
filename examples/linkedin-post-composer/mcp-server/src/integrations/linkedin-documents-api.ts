@@ -60,7 +60,7 @@ export class LinkedInDocumentsAPI {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'LinkedIn-Version': '202411',  // Latest version in YYYYMM format
+            'LinkedIn-Version': '202511',  // Current version in YYYYMM format (November 2025)
             'X-Restli-Protocol-Version': '2.0.0',
             'Content-Type': 'application/json',
           },
@@ -221,7 +221,7 @@ export class LinkedInDocumentsAPI {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'LinkedIn-Version': '202411',  // Latest version for Posts API
+          'LinkedIn-Version': '202511',  // Current version for Posts API (November 2025)
           'X-Restli-Protocol-Version': '2.0.0',
           'Content-Type': 'application/json',
         },
