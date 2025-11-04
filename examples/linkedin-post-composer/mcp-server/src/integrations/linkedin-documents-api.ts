@@ -60,7 +60,7 @@ export class LinkedInDocumentsAPI {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'LinkedIn-Version': '202504',  // Latest version in YYYYMM format
+            'LinkedIn-Version': '202411',  // Latest version in YYYYMM format
             'X-Restli-Protocol-Version': '2.0.0',
             'Content-Type': 'application/json',
           },
@@ -72,14 +72,26 @@ export class LinkedInDocumentsAPI {
         }
       );
 
+      console.log('Initialize upload response status:', response.status);
+
       if (!response.ok) {
         const error = await response.text();
-        console.error('LinkedIn document upload initialization failed:', error);
+        console.error('LinkedIn document upload initialization failed:', response.status, error);
         return null;
       }
 
-      const data: any = await response.json();
-      console.log('Document upload initialized:', data);
+      const responseText = await response.text();
+      console.log('Initialize upload response body:', responseText.substring(0, 500));
+
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+        console.log('Document upload initialized successfully:', data);
+      } catch (parseError: any) {
+        console.error('Failed to parse LinkedIn initialize upload response:', parseError);
+        console.error('Response was:', responseText);
+        return null;
+      }
 
       return {
         uploadUrl: data.value.uploadUrl,
@@ -209,12 +221,14 @@ export class LinkedInDocumentsAPI {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'LinkedIn-Version': '202510',  // Latest version for Posts API
+          'LinkedIn-Version': '202411',  // Latest version for Posts API
           'X-Restli-Protocol-Version': '2.0.0',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       });
+
+      console.log('Create post response status:', response.status);
 
       if (!response.ok) {
         const error = await response.text();
@@ -225,8 +239,21 @@ export class LinkedInDocumentsAPI {
         };
       }
 
-      const postData: any = await response.json();
-      console.log('Document post created successfully:', postData);
+      const responseText = await response.text();
+      console.log('Create post response body:', responseText.substring(0, 500));
+
+      let postData: any;
+      try {
+        postData = JSON.parse(responseText);
+        console.log('Document post created successfully:', postData);
+      } catch (parseError: any) {
+        console.error('Failed to parse LinkedIn create post response:', parseError);
+        console.error('Response was:', responseText);
+        return {
+          success: false,
+          error: 'Failed to parse LinkedIn API response',
+        };
+      }
 
       const postId = postData.id;
 
