@@ -7,10 +7,8 @@ interface CarouselImage {
 }
 
 interface DocumentPreview {
-  url?: string;
-  name: string;
-  type: string;
-  size: number;
+  file: File;
+  preview?: string;
 }
 
 interface PostPreviewProps {
@@ -121,9 +119,9 @@ export function PostPreview({
                   <div className="flex items-start gap-4">
                     {/* Document Icon */}
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      document.type === 'application/pdf' ? 'bg-red-500' :
-                      document.type.includes('word') ? 'bg-blue-500' :
-                      document.type.includes('presentation') || document.type.includes('powerpoint') ? 'bg-orange-500' :
+                      document.file.type === 'application/pdf' ? 'bg-red-500' :
+                      document.file.type.includes('word') ? 'bg-blue-500' :
+                      document.file.type.includes('presentation') || document.file.type.includes('powerpoint') ? 'bg-orange-500' :
                       'bg-gray-500'
                     }`}>
                       <FileText className="w-6 h-6 text-white" />
@@ -132,13 +130,13 @@ export function PostPreview({
                     {/* Document Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {document.name}
+                        {document.file.name}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {document.type === 'application/pdf' ? 'PDF Document' :
-                         document.type.includes('word') ? 'Word Document' :
-                         document.type.includes('presentation') || document.type.includes('powerpoint') ? 'PowerPoint Presentation' :
-                         'Document'} • {(document.size / (1024 * 1024)).toFixed(1)} MB
+                        {document.file.type === 'application/pdf' ? 'PDF Document' :
+                         document.file.type.includes('word') ? 'Word Document' :
+                         document.file.type.includes('presentation') || document.file.type.includes('powerpoint') ? 'PowerPoint Presentation' :
+                         'Document'} • {(document.file.size / (1024 * 1024)).toFixed(1)} MB
                       </p>
                     </div>
                   </div>

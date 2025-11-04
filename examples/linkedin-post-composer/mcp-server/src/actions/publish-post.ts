@@ -189,6 +189,63 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
 
   // Handle document posts
   if (postType === 'document' && documentUrl) {
+    let r2DocumentUrl = documentUrl;
+
+    // Check if documentUrl is a data URI (base64 encoded document from upload)
+    // If so, upload to R2 first
+    if (documentUrl.startsWith('data:')) {
+      console.log('Document is a data URI, uploading to R2 first...');
+
+      const { R2ImageStorage } = await import('../integrations/r2-storage');
+      const storage = new R2ImageStorage(env);
+
+      // Parse the data URI
+      const matches = documentUrl.match(/^data:([^;]+);base64,(.+)$/);
+
+      if (!matches) {
+        return {
+          success: false,
+          message: 'Invalid document data format',
+          error: 'INVALID_DOCUMENT_FORMAT'
+        };
+      }
+
+      const contentType = matches[1];
+      const base64Data = matches[2];
+
+      // Convert base64 to Uint8Array (optimized for large files)
+      const binaryString = atob(base64Data);
+      const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+
+      // Generate filename based on content type
+      let extension = 'pdf';
+      if (contentType.includes('word')) {
+        extension = contentType.includes('openxmlformats') ? 'docx' : 'doc';
+      } else if (contentType.includes('presentation') || contentType.includes('powerpoint')) {
+        extension = contentType.includes('openxmlformats') ? 'pptx' : 'ppt';
+      }
+
+      const fileName = `document-${Date.now()}.${extension}`;
+
+      // Upload to R2 using the document upload method
+      const r2Result = await storage.uploadDocument({
+        documentData: bytes,
+        fileName,
+        contentType,
+      });
+
+      if (!r2Result.success) {
+        return {
+          success: false,
+          message: 'Failed to upload document to storage',
+          error: 'R2_UPLOAD_FAILED'
+        };
+      }
+
+      r2DocumentUrl = r2Result.publicUrl!;
+      console.log('Document uploaded to R2:', r2DocumentUrl);
+    }
+
     // TODO: Implement LinkedIn Documents API integration
     // Document posts require:
     // 1. Initialize document upload via LinkedIn Documents API
@@ -200,7 +257,7 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
     // but LinkedIn Documents API integration is needed
     return {
       success: false,
-      message: 'Document post publishing requires LinkedIn Documents API integration (Phase 3.2). Document uploaded to R2 storage successfully at: ' + documentUrl,
+      message: 'Document post publishing requires LinkedIn Documents API integration (Phase 3.2). Document uploaded to R2 storage successfully at: ' + r2DocumentUrl,
       error: 'DOCUMENTS_API_NOT_IMPLEMENTED'
     };
   }

@@ -19,7 +19,7 @@ export default function App() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [currentImage, setCurrentImage] = useState<{ source: 'upload' | 'ai-generate' | 'url'; url?: string; prompt?: string }>();
   const [carouselImages, setCarouselImages] = useState<{ url: string; order: number }[]>([]);
-  const [currentDocument, setCurrentDocument] = useState<{ url?: string; name: string; type: string; size: number } | null>(null);
+  const [currentDocument, setCurrentDocument] = useState<{ file: File; preview?: string } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(true);
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
@@ -195,33 +195,16 @@ export default function App() {
     setShowAddDocumentModal(true);
   };
 
-  // Handle document upload
+  // Handle document upload (store File object, upload on publish)
   const handleDocumentUpload = async (file: File) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const result = await uploadDocument.execute({
-        document: reader.result as string,
-        filename: file.name,
-        fileType: file.type,
-        fileSize: file.size
-      });
-
-      if (result.success && result.data?.documentUrl) {
-        // Clear any existing media and set document
-        setCurrentImage(undefined);
-        setCarouselImages([]);
-        setCurrentDocument({
-          url: result.data.documentUrl,
-          name: file.name,
-          type: file.type,
-          size: file.size
-        });
-        setShowAddDocumentModal(false);
-      } else {
-        setToast({ type: 'error', message: 'Failed to upload document. Please try again.' });
-      }
-    };
-    reader.readAsDataURL(file);
+    // Clear any existing media and set document
+    setCurrentImage(undefined);
+    setCarouselImages([]);
+    setCurrentDocument({
+      file: file,
+      preview: undefined // Could add preview generation here if needed
+    });
+    setShowAddDocumentModal(false);
   };
 
   const handleRemoveCarouselImage = (order: number) => {
@@ -246,9 +229,25 @@ export default function App() {
     if (!toolData) return;
 
     let postType: 'text' | 'image' | 'carousel' | 'document' = 'text';
+    let documentDataUri: string | undefined;
 
     if (currentDocument) {
       postType = 'document';
+
+      // Read document file as base64 data URI
+      const reader = new FileReader();
+      const fileReadPromise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(currentDocument.file);
+
+      try {
+        documentDataUri = await fileReadPromise;
+      } catch (error) {
+        setToast({ type: 'error', message: 'Failed to read document file. Please try again.' });
+        return;
+      }
     } else if (carouselImages.length >= 2) {
       postType = 'carousel';
     } else if (currentImage) {
@@ -260,7 +259,7 @@ export default function App() {
       content: toolData.content,
       imageUrl: currentImage?.url,
       carouselImageUrls: carouselImages.map(img => img.url),
-      documentUrl: currentDocument?.url,
+      documentUrl: documentDataUri, // Send data URI instead of R2 URL
       postType
     });
   };
