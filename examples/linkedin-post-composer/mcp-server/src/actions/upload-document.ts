@@ -52,12 +52,9 @@ export async function handleUploadDocument(params: UploadDocumentParams, env: En
     const contentType = matches[1];
     const base64Data = matches[2];
 
-    // Convert base64 to Uint8Array
+    // Convert base64 to Uint8Array (optimized for large files)
     const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
 
     // Upload to R2 (reusing R2ImageStorage with document support)
     const storage = new R2ImageStorage(env);
