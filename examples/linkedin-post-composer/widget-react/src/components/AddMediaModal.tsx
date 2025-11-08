@@ -117,8 +117,8 @@ export function AddMediaModal({
   const canSubmit = selectedFiles.length > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col my-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20">
+      <div className="bg-white dark:bg-gray-800 rounded-b-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-slide-down">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -186,7 +186,7 @@ export function AddMediaModal({
                     Change
                   </button>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {previewUrls.map((url, index) => (
                     <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                       <img

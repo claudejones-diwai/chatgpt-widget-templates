@@ -4,14 +4,16 @@ export interface TooltipProps {
   id: string;
   place?: 'top' | 'bottom' | 'left' | 'right';
   offset?: number;
+  closeOnClick?: boolean;
 }
 
-export function Tooltip({ id, place = 'top', offset = 8 }: TooltipProps) {
+export function Tooltip({ id, place = 'top', offset = 8, closeOnClick = false }: TooltipProps) {
   return (
     <ReactTooltip
       id={id}
       place={place}
       offset={offset}
+      closeEvents={closeOnClick ? { click: true } : undefined}
       className="!bg-gray-900 dark:!bg-gray-700 !text-white dark:!text-gray-100 !text-xs !px-3 !py-2 !rounded-lg !shadow-lg !z-50 !opacity-100 !font-medium"
       classNameArrow="!border-gray-900 dark:!border-gray-700"
       style={{

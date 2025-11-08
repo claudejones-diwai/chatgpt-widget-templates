@@ -14,35 +14,61 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* System colors - Light mode */
-  --color-primary: 10 102 194; /* LinkedIn blue #0A66C2 */
-  --color-primary-hover: 8 82 156;
-  --color-surface: 255 255 255; /* White */
-  --color-surface-secondary: 249 250 251; /* Gray-50 */
-  --color-border: 229 231 235; /* Gray-200 */
-  --color-text-primary: 17 24 39; /* Gray-900 */
-  --color-text-secondary: 75 85 99; /* Gray-600 */
-  --color-text-tertiary: 156 163 175; /* Gray-400 */
-  --color-success: 22 163 74; /* Green-600 */
-  --color-success-hover: 21 128 61; /* Green-700 */
-  --color-error: 220 38 38; /* Red-600 */
-  --color-error-surface: 254 242 242; /* Red-50 */
+  /* ChatGPT Design System Colors - Light Mode */
+  /* Accent colors for interactive elements */
+  --color-accent-blue: 70 40 255; /* #4628FF - ChatGPT blue accent */
+  --color-accent-blue-hover: 98 128 255; /* #6280FF - Lighter for hover */
+  --color-accent-red: 237 82 74; /* #ED524A */
+  --color-accent-orange: 237 150 71; /* #ED9647 */
+  --color-accent-green: 75 156 53; /* #4B9C35 */
+
+  /* Surface colors */
+  --color-surface: 255 255 255; /* #FFFFFF - Primary background */
+  --color-surface-secondary: 245 245 245; /* #F5F5F5 - Secondary surface */
+  --color-surface-tertiary: 232 232 232; /* #E8E8E8 - Tertiary surface */
+  --color-border: 232 232 232; /* #E8E8E8 - Borders */
+
+  /* Text colors */
+  --color-text-primary: 13 13 13; /* #0D0D0D - Primary text */
+  --color-text-secondary: 107 107 107; /* #6B6B6B - Secondary text */
+  --color-text-tertiary: 143 143 143; /* #8F8F8F - Tertiary text */
+
+  /* Semantic colors */
+  --color-primary: 70 40 255; /* Use accent blue as primary */
+  --color-primary-hover: 98 128 255;
+  --color-success: 75 156 53; /* Green accent */
+  --color-success-hover: 60 125 42;
+  --color-error: 237 82 74; /* Red accent */
+  --color-error-surface: 254 242 242;
 }
 
 .dark {
-  /* System colors - Dark mode */
-  --color-primary: 59 148 255; /* Lighter blue for dark mode */
-  --color-primary-hover: 116 185 255;
-  --color-surface: 31 41 55; /* Gray-800 */
-  --color-surface-secondary: 17 24 39; /* Gray-900 */
-  --color-border: 75 85 99; /* Gray-600 */
-  --color-text-primary: 243 244 246; /* Gray-100 */
-  --color-text-secondary: 209 213 219; /* Gray-300 */
-  --color-text-tertiary: 156 163 175; /* Gray-400 */
-  --color-success: 34 197 94; /* Green-500 */
-  --color-success-hover: 22 163 74; /* Green-600 */
-  --color-error: 239 68 68; /* Red-500 */
-  --color-error-surface: 127 29 29; /* Red-900/20 approximation */
+  /* ChatGPT Design System Colors - Dark Mode */
+  /* Accent colors for interactive elements */
+  --color-accent-blue: 98 128 255; /* #6280FF - ChatGPT blue accent dark */
+  --color-accent-blue-hover: 135 161 255; /* Lighter for hover */
+  --color-accent-red: 255 139 133; /* #FF8B85 */
+  --color-accent-orange: 255 181 76; /* #FFB54C */
+  --color-accent-green: 77 199 119; /* #4DC777 */
+
+  /* Surface colors */
+  --color-surface: 28 28 28; /* #1C1C1C - Primary dark background */
+  --color-surface-secondary: 46 46 46; /* #2E2E2E - Secondary surface */
+  --color-surface-tertiary: 58 58 58; /* #3A3A3A - Tertiary surface */
+  --color-border: 58 58 58; /* #3A3A3A - Borders */
+
+  /* Text colors */
+  --color-text-primary: 236 236 236; /* #ECECEC - Primary text */
+  --color-text-secondary: 172 172 172; /* #ACACAC - Secondary text */
+  --color-text-tertiary: 143 143 143; /* #8F8F8F - Tertiary text */
+
+  /* Semantic colors */
+  --color-primary: 98 128 255; /* Use accent blue as primary */
+  --color-primary-hover: 135 161 255;
+  --color-success: 77 199 119; /* Green accent */
+  --color-success-hover: 61 159 95;
+  --color-error: 255 139 133; /* Red accent */
+  --color-error-surface: 127 29 29;
 }
 
 body {
@@ -112,4 +138,61 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* Pulse animation for skeleton loaders */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-skeleton-pulse {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Wave/shimmer animation for skeleton loaders */
+@keyframes skeleton-wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  50%, 100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-skeleton-wave {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-skeleton-wave::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.5) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-wave 2s ease-in-out infinite;
+}
+
+.dark .animate-skeleton-wave::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
 }

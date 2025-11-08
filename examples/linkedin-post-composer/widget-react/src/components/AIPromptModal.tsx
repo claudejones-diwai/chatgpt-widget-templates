@@ -50,8 +50,8 @@ export function AIPromptModal({
   const canGenerate = prompt.trim().length >= 10 && !isGenerating;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col my-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20">
+      <div className="bg-white dark:bg-gray-800 rounded-b-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col animate-slide-down">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
@@ -94,8 +94,8 @@ export function AIPromptModal({
 
           {/* Info Box */}
           {suggestedPrompt && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs text-blue-900 dark:text-blue-100">
+            <div className="p-3 bg-surface-secondary border border-border rounded-lg">
+              <p className="text-xs text-text-primary">
                 <span className="font-semibold">Tip:</span> This prompt was suggested by ChatGPT based on your post content. Feel free to edit it to match your vision.
               </p>
             </div>

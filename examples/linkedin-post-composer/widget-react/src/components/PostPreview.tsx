@@ -1,5 +1,7 @@
-import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X, Sparkles, Image as ImageIcon, FileText } from "lucide-react";
+import { useState } from "react";
+import { ThumbsUp, MessageCircle, Repeat2, Send, Globe, X, Image as ImageIcon, FileText } from "lucide-react";
 import { calculateMultiImageLayout } from "../utils/multiImageLayout";
+import { Skeleton } from "./Skeleton";
 
 interface CarouselImage {
   url: string;
@@ -11,16 +13,46 @@ interface DocumentPreview {
   preview?: string;
 }
 
+interface VideoPreview {
+  file: File;
+  preview?: string;
+}
+
 interface PostPreviewProps {
   accountName: string;
   content: string;
   imageUrl?: string;
   carouselImages?: CarouselImage[];
   document?: DocumentPreview | null;
+  video?: VideoPreview | null;
   accountAvatarUrl?: string;
   accountHeadline?: string;
   onRemoveImage?: () => void;
   onRemoveDocument?: () => void;
+  onRemoveVideo?: () => void;
+  isGeneratingAI?: boolean;
+  isUploadingMedia?: boolean;
+  isUploadingDocument?: boolean;
+}
+
+// Image component with loading skeleton
+function ImageWithSkeleton({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="relative w-full h-full">
+      {!loaded && (
+        <div className="absolute inset-0 bg-surface-tertiary animate-skeleton-pulse" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        onLoad={() => setLoaded(true)}
+        style={{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s' }}
+      />
+    </div>
+  );
 }
 
 export function PostPreview({
@@ -29,26 +61,21 @@ export function PostPreview({
   imageUrl,
   carouselImages = [],
   document,
+  video,
   accountAvatarUrl,
   accountHeadline,
   onRemoveImage,
   onRemoveDocument,
+  onRemoveVideo,
+  isGeneratingAI = false,
+  isUploadingMedia = false,
+  isUploadingDocument = false,
 }: PostPreviewProps) {
-  const isEmpty = !content.trim() && !imageUrl && carouselImages.length === 0 && !document;
-
+  const isLoading = isGeneratingAI || isUploadingMedia || isUploadingDocument;
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Preview
-        </label>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {isEmpty ? "Start typing to see preview" : "How it will look on LinkedIn"}
-        </span>
-      </div>
-
+    <div>
       {/* LinkedIn Post Card */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-sm">
+      <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
         {/* Post Header */}
         <div className="p-4 space-y-3">
           <div className="flex items-start gap-3">
@@ -92,26 +119,43 @@ export function PostPreview({
             {content ? (
               content
             ) : (
-              <div className="text-center py-8 space-y-3">
-                <div className="text-gray-400 dark:text-gray-500">
-                  <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center py-12">
+                <div className="text-text-tertiary">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                  Start typing in the Edit tab to see your post preview
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Your content will update here in real-time
+                <p className="text-sm text-text-secondary">
+                  Your post content will appear here
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Media Area - Shows image, carousel, document, or empty state */}
-        <div className="border-t border-gray-200 dark:border-gray-700">
-          {document ? (
+        {/* Media Area - Shows video, image, carousel, document, or empty state */}
+        <div className="border-t border-gray-200 dark:border-gray-700 flex-1 flex flex-col">
+          {video ? (
+            /* Video Preview */
+            <div className="w-full bg-gray-900 relative group">
+              <video
+                src={video.preview}
+                controls
+                className="w-full max-h-[500px] object-contain"
+                preload="metadata"
+              />
+              {/* Remove Video Button */}
+              {onRemoveVideo && (
+                <button
+                  onClick={onRemoveVideo}
+                  className="absolute top-3 right-3 min-w-[44px] min-h-[44px] bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  aria-label="Remove video"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          ) : document ? (
             /* Document Preview */
             <div className="w-full bg-gray-50 dark:bg-gray-800 p-6 relative group">
               <div className="max-w-md mx-auto">
@@ -147,7 +191,7 @@ export function PostPreview({
               {onRemoveDocument && (
                 <button
                   onClick={onRemoveDocument}
-                  className="absolute top-3 right-3 w-8 h-8 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  className="absolute top-3 right-3 min-w-[44px] min-h-[44px] bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                   aria-label="Remove document"
                 >
                   <X className="w-5 h-5" />
@@ -157,7 +201,7 @@ export function PostPreview({
           ) : imageUrl ? (
             /* Single Image - Show with X overlay */
             <div className="w-full h-96 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
-              <img
+              <ImageWithSkeleton
                 src={imageUrl}
                 alt="Post content"
                 className="w-full h-full object-cover"
@@ -166,7 +210,7 @@ export function PostPreview({
               {onRemoveImage && (
                 <button
                   onClick={onRemoveImage}
-                  className="absolute top-3 right-3 w-8 h-8 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  className="absolute top-3 right-3 min-w-[44px] min-h-[44px] bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                   aria-label="Remove image"
                 >
                   <X className="w-5 h-5" />
@@ -188,7 +232,7 @@ export function PostPreview({
                         key={index}
                         className={`${layout.imageClasses[index]} relative overflow-hidden bg-gray-200 dark:bg-gray-700`}
                       >
-                        <img
+                        <ImageWithSkeleton
                           src={image.url}
                           alt={`Carousel image ${index + 1}`}
                           className="w-full h-full object-cover"
@@ -207,66 +251,28 @@ export function PostPreview({
                 </div>
               );
             })()
-          ) : (
-            /* Empty State - No Media */
-            <div className="w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 py-16 px-6">
-              <div className="max-w-md mx-auto text-center space-y-6">
-                {/* Title */}
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Enhance Your Post with Media
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Use the toolbar below to add visual content to your LinkedIn post
+          ) : isLoading ? (
+            /* Loading State - Skeleton */
+            <div className="w-full h-96 bg-surface-secondary relative">
+              <Skeleton variant="rectangular" height="100%" width="100%" animation="wave" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="text-sm text-text-secondary">
+                    {isGeneratingAI ? 'Generating AI image...' : isUploadingDocument ? 'Uploading document...' : 'Uploading media...'}
                   </p>
                 </div>
-
-                {/* Instructions */}
-                <div className="space-y-3 text-left bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Generate AI Image
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Click the sparkle icon to create professional images with AI
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <ImageIcon className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Upload Media
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Click the image icon to upload photos, videos, or create a carousel
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <FileText className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Add Document
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Click the document icon to upload PDFs, PowerPoint, or Word files
-                      </p>
-                    </div>
-                  </div>
+              </div>
+            </div>
+          ) : (
+            /* Empty State - No Media */
+            <div className="flex-1 w-full bg-surface-secondary px-6 py-20 flex items-center justify-center">
+              <div className="text-center space-y-3">
+                <div className="text-text-tertiary">
+                  <ImageIcon className="w-12 h-12 mx-auto opacity-40" strokeWidth={1.5} />
                 </div>
-
-                {/* Footer Note */}
-                <p className="text-xs text-gray-500 dark:text-gray-500 italic">
-                  Media is optional - you can publish without it
+                <p className="text-sm text-text-secondary">
+                  Add media using the toolbar above
                 </p>
               </div>
             </div>
@@ -295,12 +301,6 @@ export function PostPreview({
           </div>
         </div>
       </div>
-
-      {!isEmpty && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          This is a preview. The actual post may look slightly different on LinkedIn.
-        </p>
-      )}
     </div>
   );
 }

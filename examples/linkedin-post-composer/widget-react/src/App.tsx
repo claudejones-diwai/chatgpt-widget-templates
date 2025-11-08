@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Send, X } from "lucide-react";
-import { useTheme, useToolData, useServerAction } from "./hooks";
+import { Send, X, ChevronUp, ChevronDown } from "lucide-react";
+import { useTheme, useToolData, useServerAction, useOpenAiGlobal } from "./hooks";
 import { AccountSelector } from "./components/AccountSelector";
 import { PostPreview } from "./components/PostPreview";
 import { Toolbar } from "./components/Toolbar";
+import { Tooltip } from "./components/Tooltip";
+import { SkeletonLoader } from "./components/SkeletonLoader";
 import { AddMediaModal } from "./components/AddMediaModal";
 import { AddDocumentModal } from "./components/AddDocumentModal";
 import { AIPromptModal } from "./components/AIPromptModal";
@@ -13,6 +15,7 @@ import "react-tooltip/dist/react-tooltip.css";
 
 export default function App() {
   const theme = useTheme();
+  const displayMode = useOpenAiGlobal<"inline" | "fullscreen" | "picture-in-picture">("displayMode");
   const toolData = useToolData<ComposeLinkedInPostOutput>();
 
   // Local state
@@ -20,18 +23,21 @@ export default function App() {
   const [currentImage, setCurrentImage] = useState<{ source: 'upload' | 'ai-generate' | 'url'; url?: string; prompt?: string }>();
   const [carouselImages, setCarouselImages] = useState<{ url: string; order: number }[]>([]);
   const [currentDocument, setCurrentDocument] = useState<{ file: File; preview?: string } | null>(null);
+  const [currentVideo, setCurrentVideo] = useState<{ file: File; preview?: string } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(true);
   const [showAddMediaModal, setShowAddMediaModal] = useState(false);
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
   const [showAIPromptModal, setShowAIPromptModal] = useState(false);
   const [mediaModalMode, setMediaModalMode] = useState<'replace' | 'append'>('replace');
   const [toast, setToast] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
+  const [headerVisible, setHeaderVisible] = useState(true);
 
   // Server actions
   const generateImage = useServerAction<{ prompt: string; style: string; size: string }, GenerateImageOutput>("generate_image");
   const uploadImage = useServerAction<{ image: string; filename: string }, { success: boolean; imageUrl?: string; error?: string }>("upload_image");
   const uploadCarouselImages = useServerAction<{ images: { image: string; filename: string; order: number }[] }, UploadCarouselImagesOutput>("upload_carousel_images");
   const uploadDocument = useServerAction<{ document: string; filename: string; fileType: string; fileSize: number }, { success: boolean; documentUrl?: string; error?: string }>("upload_document");
+  const uploadVideo = useServerAction<{ video: string; filename: string; fileType: string; fileSize: number }, { success: boolean; videoUrl?: string; error?: string }>("upload_video");
   const publishPost = useServerAction<any, PublishPostOutput>("publish_post");
 
   // Initialize from tool data
@@ -44,6 +50,15 @@ export default function App() {
       }
     }
   }, [toolData]);
+
+  // Send conversational follow-up after successful publication
+  useEffect(() => {
+    if (publishPost.result?.success && typeof window !== 'undefined' && window.openai?.sendFollowUpMessage) {
+      window.openai.sendFollowUpMessage({
+        message: "Would you like me to help you with anything else? I can:\n- Create another LinkedIn post\n- Schedule a post for later\n- Generate engagement analytics\n- Suggest optimal posting times"
+      });
+    }
+  }, [publishPost.result?.success]);
 
   // Handle image generation
   const handleGenerateImage = async (prompt: string) => {
@@ -72,9 +87,17 @@ export default function App() {
   // Handle media upload (single image, carousel, or video)
   const handleMediaUpload = async (files: File[], mediaType: 'image' | 'carousel' | 'video') => {
     if (mediaType === 'video') {
-      // Phase 3.3: Video upload
-      console.log('Video upload coming in Phase 3.3:', files[0]);
-      setToast({ type: 'info', message: 'Video upload coming in Phase 3.3!' });
+      // Video upload - store File object, validation and upload happens on publish
+      const file = files[0];
+
+      // Clear any existing media and set video
+      setCurrentImage(undefined);
+      setCarouselImages([]);
+      setCurrentDocument(null);
+      setCurrentVideo({
+        file: file,
+        preview: URL.createObjectURL(file) // Create preview URL for video player
+      });
       setShowAddMediaModal(false);
       return;
     }
@@ -228,10 +251,28 @@ export default function App() {
   const handlePublish = async () => {
     if (!toolData) return;
 
-    let postType: 'text' | 'image' | 'carousel' | 'document' = 'text';
+    let postType: 'text' | 'image' | 'carousel' | 'document' | 'video' = 'text';
     let documentDataUri: string | undefined;
+    let videoDataUri: string | undefined;
 
-    if (currentDocument) {
+    if (currentVideo) {
+      postType = 'video';
+
+      // Read video file as base64 data URI
+      const reader = new FileReader();
+      const fileReadPromise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(currentVideo.file);
+
+      try {
+        videoDataUri = await fileReadPromise;
+      } catch (error) {
+        setToast({ type: 'error', message: 'Failed to read video file. Please try again.' });
+        return;
+      }
+    } else if (currentDocument) {
       postType = 'document';
 
       // Read document file as base64 data URI
@@ -260,6 +301,7 @@ export default function App() {
       imageUrl: currentImage?.url,
       carouselImageUrls: carouselImages.map(img => img.url),
       documentUrl: documentDataUri, // Send data URI instead of R2 URL
+      videoUrl: videoDataUri, // Send data URI instead of R2 URL
       postType
     });
   };
@@ -271,29 +313,31 @@ export default function App() {
 
   const canPublish = toolData && toolData.content.trim().length > 0 && !publishPost.loading;
 
+  // Determine container max-width based on display mode
+  const containerMaxWidth = displayMode === "fullscreen"
+    ? "max-w-4xl"
+    : displayMode === "picture-in-picture"
+    ? "max-w-sm"
+    : "max-w-2xl"; // inline (default)
+
   // Loading state
   if (!toolData) {
     return (
       <div className={theme === "dark" ? "dark" : ""}>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-          <div className="text-center space-y-3">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading LinkedIn Post Composer...</p>
-          </div>
-        </div>
+        <SkeletonLoader />
       </div>
     );
   }
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-      <div className="min-h-screen bg-surface-secondary">
-        <div className="max-w-2xl mx-auto p-6 space-y-4">
-          {/* Main Publishing Card */}
-          {!publishPost.result?.success && (
-            <div className="space-y-4">
-              {/* Account Selection - Moved to top */}
-              <div className="bg-surface rounded-xl shadow-sm border border-border p-4">
+      <div className="min-h-screen bg-transparent">
+        {/* Sticky All-in-One Header */}
+        {!publishPost.result?.success && headerVisible && (
+          <div className="sticky top-0 z-20 bg-surface">
+            <div className={`${containerMaxWidth} mx-auto px-4 py-3`}>
+              {/* Account Selector Row */}
+              <div className="mb-3">
                 <AccountSelector
                   accounts={toolData.accounts}
                   selectedAccountId={selectedAccountId}
@@ -301,15 +345,87 @@ export default function App() {
                 />
               </div>
 
-              {/* Content Editor with Toolbar */}
-              <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
-                {/* LinkedIn Post Preview */}
+              {/* Toolbar + Publish Button Row */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Toolbar
+                    onGenerateAI={handleGenerateAI}
+                    onAddMedia={handleAddMedia}
+                    onAddDocument={handleAddDocument}
+                    disabled={publishPost.loading || generateImage.loading || uploadImage.loading || uploadCarouselImages.loading || uploadDocument.loading || uploadVideo.loading}
+                    hasMedia={!!currentImage || carouselImages.length > 0 || !!currentDocument || !!currentVideo}
+                    mediaType={
+                      currentVideo ? 'video' :
+                      currentDocument ? 'document' :
+                      carouselImages.length >= 2 ? 'carousel' :
+                      currentImage ? 'image' : null
+                    }
+                    imageSource={currentImage?.source || null}
+                    isGeneratingAI={generateImage.loading}
+                    isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
+                    isUploadingDocument={uploadDocument.loading}
+                  />
+                </div>
+
+                <button
+                  onClick={handlePublish}
+                  disabled={!canPublish || publishPost.loading}
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium shadow-sm shrink-0"
+                >
+                  {publishPost.loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Publish
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Separator with integrated chevron control */}
+        {!publishPost.result?.success && (
+          <div className="px-4 pt-4">
+            <div className={`${containerMaxWidth} mx-auto`}>
+              <div className="relative border-t border-border">
+                <button
+                  onClick={() => setHeaderVisible(!headerVisible)}
+                  data-tooltip-id="collapse-tooltip"
+                  data-tooltip-content={headerVisible ? "Collapse toolbar" : "Expand toolbar"}
+                  className="absolute left-1/2 -translate-x-1/2 -top-4 rounded-full border border-border bg-surface shadow-sm p-1.5 text-text-secondary hover:text-text-primary hover:border-text-secondary transition-colors"
+                  aria-label={headerVisible ? "Collapse toolbar" : "Expand toolbar"}
+                >
+                  {headerVisible ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Content Area - Scrollable preview */}
+        <div className="px-4 pt-4">
+          <div className={`${containerMaxWidth} mx-auto`}>
+            <div className="max-h-[80vh] overflow-y-auto pr-2">
+              {/* LinkedIn Post Preview */}
+              {!publishPost.result?.success && (
+                <div>
                 <PostPreview
                   accountName={selectedAccount?.name || "Your Account"}
                   content={toolData.content}
                   imageUrl={currentImage?.url}
                   carouselImages={carouselImages}
                   document={currentDocument}
+                  video={currentVideo}
                   accountAvatarUrl={
                     'avatarUrl' in (selectedAccount || {})
                       ? (selectedAccount as any).avatarUrl
@@ -324,6 +440,10 @@ export default function App() {
                   }
                   onRemoveImage={() => setCurrentImage(undefined)}
                   onRemoveDocument={() => setCurrentDocument(null)}
+                  onRemoveVideo={() => setCurrentVideo(null)}
+                  isGeneratingAI={generateImage.loading}
+                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
+                  isUploadingDocument={uploadDocument.loading}
                 />
 
                 {/* Carousel Image Manager */}
@@ -336,59 +456,25 @@ export default function App() {
                     />
                   </div>
                 )}
-
-                {/* Toolbar */}
-                <Toolbar
-                  onGenerateAI={handleGenerateAI}
-                  onAddMedia={handleAddMedia}
-                  onAddDocument={handleAddDocument}
-                  disabled={publishPost.loading || generateImage.loading || uploadImage.loading || uploadCarouselImages.loading || uploadDocument.loading}
-                  hasMedia={!!currentImage || carouselImages.length > 0 || !!currentDocument}
-                  mediaType={
-                    currentDocument ? 'document' :
-                    carouselImages.length >= 2 ? 'carousel' :
-                    currentImage ? 'image' : null
-                  }
-                  imageSource={currentImage?.source || null}
-                  isGeneratingAI={generateImage.loading}
-                  isUploadingMedia={uploadImage.loading || uploadCarouselImages.loading}
-                  isUploadingDocument={uploadDocument.loading}
-                />
-              </div>
-
-              {/* Publish Button */}
-              <button
-                onClick={handlePublish}
-                disabled={!canPublish || publishPost.loading}
-                className="w-full px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
-              >
-                {publishPost.loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Publishing to LinkedIn...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    Publish to LinkedIn
-                  </>
-                )}
-              </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Success Toast Notification - Fixed at bottom */}
-          {publishPost.result?.success && showSuccessToast && (
-            <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pb-6 pointer-events-none">
-              <div className="relative bg-surface rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 pointer-events-auto border-2 border-success animate-slide-up">
-                {/* Close button */}
-                <button
-                  onClick={() => setShowSuccessToast(false)}
-                  className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
-                  aria-label="Close notification"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        {/* Success Notification - Drawer from top */}
+        {publishPost.result?.success && showSuccessToast && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20">
+            <div className={`relative bg-surface rounded-b-2xl shadow-2xl border-2 border-success ${containerMaxWidth} w-full max-h-[85vh] overflow-y-auto animate-slide-down`}>
+              {/* Close button */}
+              <button
+                onClick={() => setShowSuccessToast(false)}
+                className="absolute top-3 right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+                aria-label="Close notification"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="p-6 space-y-4">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="w-16 h-16 rounded-full bg-success flex items-center justify-center">
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -417,90 +503,105 @@ export default function App() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Error Message */}
-          {publishPost.result && !publishPost.result.success && (
-            <div className="p-4 bg-error-surface border border-error rounded-xl">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-error flex items-center justify-center flex-shrink-0">
-                  <X className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-text-primary">
-                    Failed to publish
-                  </h3>
-                  <p className="text-sm text-text-secondary mt-1">
-                    {publishPost.result.message}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Add Media Modal */}
-        <AddMediaModal
-          isOpen={showAddMediaModal}
-          onClose={() => setShowAddMediaModal(false)}
-          onUploadMedia={handleMediaUpload}
-          isUploading={uploadCarouselImages.loading}
-          mode={mediaModalMode}
-        />
-
-        {/* Add Document Modal */}
-        <AddDocumentModal
-          isOpen={showAddDocumentModal}
-          onClose={() => setShowAddDocumentModal(false)}
-          onUploadDocument={handleDocumentUpload}
-          isUploading={uploadDocument.loading}
-        />
-
-        {/* AI Prompt Modal */}
-        <AIPromptModal
-          isOpen={showAIPromptModal}
-          onClose={() => setShowAIPromptModal(false)}
-          onGenerate={handleGenerateFromPrompt}
-          suggestedPrompt={toolData?.suggestedImagePrompt}
-          isGenerating={generateImage.loading}
-        />
-
-        {/* Toast Notification */}
-        {toast && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pb-6 pointer-events-none">
-            <div className={`relative bg-surface rounded-xl shadow-2xl max-w-md w-full p-4 space-y-2 pointer-events-auto border-2 ${
-              toast.type === 'error' ? 'border-error' : 'border-primary'
-            } animate-slide-up`}>
+        {/* Error Notification - Drawer from top */}
+        {publishPost.result && !publishPost.result.success && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20">
+            <div className={`relative bg-surface rounded-b-2xl shadow-2xl border-2 border-error ${containerMaxWidth} w-full max-h-[85vh] overflow-y-auto animate-slide-down`}>
               {/* Close button */}
               <button
-                onClick={() => setToast(null)}
-                className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+                onClick={() => publishPost.result = null}
+                className="absolute top-3 right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
                 aria-label="Close notification"
               >
                 <X className="w-5 h-5" />
               </button>
-              <div className="flex items-start gap-3 pr-6">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  toast.type === 'error' ? 'bg-error' : 'bg-primary'
-                }`}>
-                  {toast.type === 'error' ? (
+              <div className="p-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-error flex items-center justify-center flex-shrink-0">
                     <X className="w-6 h-6 text-white" />
-                  ) : (
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 pt-1.5">
-                  <p className="text-sm text-text-primary whitespace-pre-wrap">
-                    {toast.message}
-                  </p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-text-primary">
+                      Failed to publish
+                    </h3>
+                    <p className="text-sm text-text-secondary mt-1">
+                      {publishPost.result.message}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Add Media Modal */}
+      <AddMediaModal
+        isOpen={showAddMediaModal}
+        onClose={() => setShowAddMediaModal(false)}
+        onUploadMedia={handleMediaUpload}
+        isUploading={uploadCarouselImages.loading}
+        mode={mediaModalMode}
+      />
+
+      {/* Add Document Modal */}
+      <AddDocumentModal
+        isOpen={showAddDocumentModal}
+        onClose={() => setShowAddDocumentModal(false)}
+        onUploadDocument={handleDocumentUpload}
+        isUploading={uploadDocument.loading}
+      />
+
+      {/* AI Prompt Modal */}
+      <AIPromptModal
+        isOpen={showAIPromptModal}
+        onClose={() => setShowAIPromptModal(false)}
+        onGenerate={handleGenerateFromPrompt}
+        suggestedPrompt={toolData?.suggestedImagePrompt}
+        isGenerating={generateImage.loading}
+      />
+
+      {/* Tooltip for collapse/expand control */}
+      <Tooltip id="collapse-tooltip" place="top" closeOnClick={true} />
+
+      {/* Toast Notification - Always at top */}
+      {toast && (
+        <div className="fixed top-16 right-4 z-50 pointer-events-none max-w-md">
+          <div className={`relative bg-surface rounded-xl shadow-2xl w-full p-4 space-y-2 pointer-events-auto border-2 ${
+            toast.type === 'error' ? 'border-error' : 'border-primary'
+          } animate-slide-down`}>
+            {/* Close button */}
+            <button
+              onClick={() => setToast(null)}
+              className="absolute top-2 right-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+              aria-label="Close notification"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-start gap-3 pr-6">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                toast.type === 'error' ? 'bg-error' : 'bg-primary'
+              }`}>
+                {toast.type === 'error' ? (
+                  <X className="w-6 h-6 text-white" />
+                ) : (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 pt-1.5">
+                <p className="text-sm text-text-primary whitespace-pre-wrap">
+                  {toast.message}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

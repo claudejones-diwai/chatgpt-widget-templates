@@ -51,7 +51,7 @@ export function Toolbar({
       : "Upload a document (PDF, PowerPoint, Word)";
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+    <div>
       <div className="flex items-center justify-between">
         {/* Left: Media Actions */}
         <div className="flex items-center gap-2">
@@ -62,12 +62,12 @@ export function Toolbar({
             data-tooltip-id="toolbar-tooltip"
             data-tooltip-content={generateAITooltip}
             className={`
-              p-2.5 rounded-lg transition-colors
+              p-3 rounded-lg transition-colors
               ${!canGenerateAI
-                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                ? 'text-text-tertiary cursor-not-allowed'
                 : imageSource === 'ai-generate'
-                  ? 'text-primary bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'text-accent-blue bg-accent-blue/10'
+                  : 'text-text-secondary hover:bg-surface-secondary'
               }
             `}
             aria-label="Generate AI image"
@@ -86,12 +86,12 @@ export function Toolbar({
             data-tooltip-id="toolbar-tooltip"
             data-tooltip-content={addMediaTooltip}
             className={`
-              p-2.5 rounded-lg transition-colors
+              p-3 rounded-lg transition-colors
               ${disabled || isUploadingMedia
-                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                ? 'text-text-tertiary cursor-not-allowed'
                 : mediaType === 'carousel' || mediaType === 'video'
-                  ? 'text-primary bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'text-accent-blue bg-accent-blue/10'
+                  : 'text-text-secondary hover:bg-surface-secondary'
               }
             `}
             aria-label="Add media"
@@ -110,12 +110,12 @@ export function Toolbar({
             data-tooltip-id="toolbar-tooltip"
             data-tooltip-content={addDocumentTooltip}
             className={`
-              p-2.5 rounded-lg transition-colors
+              p-3 rounded-lg transition-colors
               ${hasMedia || disabled || isUploadingDocument
-                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                ? 'text-text-tertiary cursor-not-allowed'
                 : mediaType === 'document'
-                  ? 'text-primary bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'text-accent-blue bg-accent-blue/10'
+                  : 'text-text-secondary hover:bg-surface-secondary'
               }
             `}
             aria-label="Add document"
@@ -136,10 +136,10 @@ export function Toolbar({
             data-tooltip-id="toolbar-tooltip"
             data-tooltip-content="Schedule for later"
             className={`
-              p-2.5 rounded-lg transition-colors
+              p-3 rounded-lg transition-colors
               ${disabled
-                ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'text-text-tertiary cursor-not-allowed'
+                : 'text-text-secondary hover:bg-surface-secondary'
               }
             `}
             aria-label="Schedule post"

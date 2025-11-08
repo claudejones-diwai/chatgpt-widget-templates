@@ -69,7 +69,7 @@ export function CarouselImageManager({
             {/* Remove Button */}
             <button
               onClick={() => onRemoveImage(image.order)}
-              className="absolute top-2 right-2 w-6 h-6 bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 min-w-[44px] min-h-[44px] bg-black/70 hover:bg-black/90 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
               aria-label={`Remove image ${index + 1}`}
             >
               <X className="w-4 h-4" />
