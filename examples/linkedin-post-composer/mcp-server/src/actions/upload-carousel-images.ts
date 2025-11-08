@@ -49,13 +49,12 @@ export async function handleUploadCarouselImages(
     }
   }
 
-  const uploadedImages: { url: string; imageKey: string; order: number }[] = [];
-  const storage = new R2ImageStorage(env);
+  const validatedImages: { url: string; imageKey: string; order: number }[] = [];
 
   try {
-    // Upload all images
+    // Validate all images
     for (const img of images) {
-      // Parse base64 data URL
+      // Validate base64 data URL format
       const matches = img.image.match(/^data:([^;]+);base64,(.+)$/);
 
       if (!matches) {
@@ -66,53 +65,40 @@ export async function handleUploadCarouselImages(
       }
 
       const contentType = matches[1];
-      const base64Data = matches[2];
 
-      // Convert base64 to Uint8Array
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Upload to R2
-      const result = await storage.uploadImage({
-        imageData: bytes,
-        fileName: img.filename,
-        contentType,
-      });
-
-      if (!result.success) {
+      // Validate it's an image content type
+      if (!contentType.startsWith('image/')) {
         return {
           success: false,
-          error: result.error || `Failed to upload ${img.filename}`
+          error: `Invalid content type for ${img.filename}. Expected image/*`
         };
       }
 
-      uploadedImages.push({
-        url: result.publicUrl!,
-        imageKey: result.key!,
+      // Store the data URI directly (no R2 upload)
+      validatedImages.push({
+        url: img.image, // Return the data URI itself
+        imageKey: img.filename,
         order: img.order
       });
 
-      console.log(`Uploaded carousel image ${img.order + 1}/${images.length}: ${img.filename}`);
+      console.log(`Validated carousel image ${img.order + 1}/${images.length}: ${img.filename}`);
     }
 
     // Sort by order to ensure consistency
-    uploadedImages.sort((a, b) => a.order - b.order);
+    validatedImages.sort((a, b) => a.order - b.order);
 
-    console.log(`Successfully uploaded ${uploadedImages.length} carousel images`);
+    console.log(`Successfully validated ${validatedImages.length} carousel images for direct upload`);
 
     return {
       success: true,
-      images: uploadedImages,
-      message: `Successfully uploaded ${uploadedImages.length} images`
+      images: validatedImages,
+      message: `Successfully validated ${validatedImages.length} images`
     };
   } catch (error: any) {
-    console.error('Carousel upload error:', error);
+    console.error('Carousel validation error:', error);
     return {
       success: false,
-      error: error.message || 'Failed to process and upload carousel images'
+      error: error.message || 'Failed to validate carousel images'
     };
   }
 }

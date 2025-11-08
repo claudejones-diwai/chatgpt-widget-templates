@@ -102,6 +102,13 @@ export interface UploadDocumentOutput {
   error?: string;
 }
 
+export interface UploadVideoOutput {
+  success: boolean;
+  videoUrl?: string;      // Data URI for direct upload to LinkedIn
+  videoKey?: string;      // Filename reference
+  error?: string;
+}
+
 export interface PublishPostOutput {
   success: boolean;
   postId?: string;        // LinkedIn post URN

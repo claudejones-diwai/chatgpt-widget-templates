@@ -154,9 +154,6 @@ export class LinkedInPostsAPI {
       }
 
       const authData: any = await authResponse.json();
-      console.log('Organizations ACLs data:', JSON.stringify(authData, null, 2));
-      console.log('Raw elements array:', authData.elements);
-      console.log('Elements length:', authData.elements ? authData.elements.length : 'undefined');
 
       // Extract organization URNs from response
       const elements = authData.elements || [];
@@ -198,7 +195,6 @@ export class LinkedInPostsAPI {
 
           if (orgResponse.ok) {
             const orgDetails: any = await orgResponse.json();
-            console.log(`Organization ${orgId} details:`, JSON.stringify(orgDetails, null, 2));
 
             const orgName = orgDetails.localizedName || orgDetails.name?.localized?.en_US || 'Unknown Organization';
             const vanityName = orgDetails.vanityName || '';
@@ -279,6 +275,96 @@ export class LinkedInPostsAPI {
       personal,
       organizations,
     };
+  }
+
+  /**
+   * Upload image to LinkedIn from data URI (direct upload)
+   * Returns image URN that can be used in post
+   * @param authorUrn - The URN of the author (person or organization) who will own the image
+   */
+  async uploadImageFromDataUri(userId: string, dataUri: string, authorUrn: string): Promise<string | null> {
+    const accessToken = await this.getAccessToken(userId);
+
+    if (!accessToken) {
+      console.error('No access token found for user:', userId);
+      return null;
+    }
+
+    try {
+      // Parse data URI
+      const matches = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        console.error('Invalid data URI format');
+        return null;
+      }
+
+      const contentType = matches[1];
+      const base64Data = matches[2];
+
+      // Convert base64 to ArrayBuffer
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      console.log('Uploading image directly to LinkedIn, size:', bytes.length, 'bytes');
+
+      // Register image upload with LinkedIn
+      const registerResponse = await fetch(
+        'https://api.linkedin.com/v2/assets?action=registerUpload',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'LinkedIn-Version': '202304',
+          },
+          body: JSON.stringify({
+            registerUploadRequest: {
+              recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+              owner: authorUrn,
+              serviceRelationships: [
+                {
+                  relationshipType: 'OWNER',
+                  identifier: 'urn:li:userGeneratedContent',
+                },
+              ],
+            },
+          }),
+        }
+      );
+
+      if (!registerResponse.ok) {
+        const error = await registerResponse.text();
+        console.error('LinkedIn image registration failed:', error);
+        return null;
+      }
+
+      const registerData: any = await registerResponse.json();
+      const uploadUrl = registerData.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+      const asset = registerData.value.asset;
+
+      // Upload image binary data
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: bytes,
+      });
+
+      if (!uploadResponse.ok) {
+        console.error('LinkedIn image upload failed:', uploadResponse.status);
+        return null;
+      }
+
+      console.log('Image uploaded successfully to LinkedIn');
+      return asset; // Return the image URN
+    } catch (error: any) {
+      console.error('Error uploading image from data URI to LinkedIn:', error);
+      return null;
+    }
   }
 
   /**
@@ -377,7 +463,8 @@ export class LinkedInPostsAPI {
   }
 
   /**
-   * Publish a post to LinkedIn
+   * Publish a post to LinkedIn using REST Posts API
+   * Supports text posts and single-image posts
    */
   async publishPost(userId: string, args: PublishPostArgs): Promise<PublishPostResponse> {
     const accessToken = await this.getAccessToken(userId);
@@ -390,59 +477,135 @@ export class LinkedInPostsAPI {
     }
 
     try {
-      // Build post payload
-      const payload: any = {
-        author: args.author,
-        lifecycleState: 'PUBLISHED',
-        specificContent: {
-          'com.linkedin.ugc.ShareContent': {
-            shareCommentary: {
-              text: args.content,
-            },
-            shareMediaCategory: args.imageUrn ? 'IMAGE' : 'NONE',
-          },
-        },
-        visibility: {
-          'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
-        },
-      };
-
-      // Add image if provided
-      if (args.imageUrn) {
-        payload.specificContent['com.linkedin.ugc.ShareContent'].media = [
-          {
-            status: 'READY',
-            media: args.imageUrn,
-          },
-        ];
+      // Convert digitalmediaAsset URN to image URN if present
+      // REST Posts API requires urn:li:image:XXX format
+      let imageUrn = args.imageUrn;
+      if (imageUrn && imageUrn.includes('digitalmediaAsset')) {
+        imageUrn = imageUrn.replace('digitalmediaAsset', 'image');
+        console.log('Converted URN for REST Posts API:', imageUrn);
       }
 
-      const response = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+      // Build REST Posts API payload
+      const payload: any = {
+        author: args.author,
+        commentary: args.content,
+        visibility: 'PUBLIC',
+        distribution: {
+          feedDistribution: 'MAIN_FEED',
+          targetEntities: [],
+          thirdPartyDistributionChannels: []
+        },
+        lifecycleState: 'PUBLISHED',
+        isReshareDisabledByAuthor: false
+      };
+
+      // Add single image if provided
+      if (imageUrn) {
+        payload.content = {
+          media: {
+            id: imageUrn
+          }
+        };
+      }
+
+      const response = await fetch('https://api.linkedin.com/rest/posts', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
           'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202304',
+          'LinkedIn-Version': '202411',
         },
         body: JSON.stringify(payload),
       });
 
+      console.log('Create post response status:', response.status);
+
       if (!response.ok) {
         const error = await response.text();
-        console.error('LinkedIn post creation failed:', error);
+        console.error('LinkedIn post creation failed:', response.status, error);
         return {
           success: false,
           error: `Failed to publish post: ${response.statusText}`,
         };
       }
 
-      const postData: any = await response.json();
-      const postId = postData.id;
+      const responseText = await response.text();
+      console.log('Create post response body length:', responseText.length);
 
-      // Extract post URL (approximate)
-      // LinkedIn doesn't return direct URLs, so we construct an approximate one
+      // LinkedIn may return the post ID in headers instead of body
+      let postId: string | undefined;
+
+      // Handle empty response (LinkedIn sometimes returns 201 Created with empty body and ID in headers)
+      if (!responseText || responseText.trim().length === 0) {
+        console.log('Empty response body - checking headers for post ID');
+
+        // Check for post ID in common header locations
+        const locationHeader = response.headers.get('location');
+        const xLinkedInId = response.headers.get('x-linkedin-id');
+        const xRestliId = response.headers.get('x-restli-id');
+
+        console.log('Location header:', locationHeader);
+        console.log('x-linkedin-id header:', xLinkedInId);
+        console.log('x-restli-id header:', xRestliId);
+
+        // Try to extract ID from Location header (format: .../posts/{id} or urn:li:share:{id})
+        if (locationHeader) {
+          const locationMatch = locationHeader.match(/\/posts\/([^\/\?]+)/);
+          if (locationMatch) {
+            postId = locationMatch[1];
+            console.log('Extracted post ID from Location header:', postId);
+          }
+        }
+
+        // Try other header fields
+        if (!postId && xLinkedInId) {
+          postId = xLinkedInId;
+          console.log('Using x-linkedin-id header:', postId);
+        }
+
+        if (!postId && xRestliId) {
+          postId = xRestliId;
+          console.log('Using x-restli-id header:', postId);
+        }
+
+        if (!postId) {
+          console.error('No post ID found in headers or body');
+          return {
+            success: false,
+            error: 'LinkedIn API returned empty response with no post ID in headers',
+          };
+        }
+      } else {
+        // Parse response body to get post ID
+        let postData: any;
+        try {
+          postData = JSON.parse(responseText);
+          console.log('Post created successfully, postId:', postData?.id);
+          postId = postData.id;
+        } catch (parseError: any) {
+          console.error('Failed to parse LinkedIn create post response:', parseError.message);
+          console.error('Response text length:', responseText.length);
+          console.error('First 200 chars:', responseText.substring(0, 200));
+          return {
+            success: false,
+            error: `Failed to parse LinkedIn API response: ${parseError.message}`,
+          };
+        }
+      }
+
+      if (!postId) {
+        console.error('No post ID available after parsing');
+        return {
+          success: false,
+          error: 'Failed to extract post ID from LinkedIn response',
+        };
+      }
+
+      // Construct post URL
       const postUrl = `https://www.linkedin.com/feed/update/${postId}`;
+
+      console.log('Post published successfully via REST Posts API:', postId);
 
       return {
         success: true,

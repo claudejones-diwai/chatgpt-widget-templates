@@ -6,6 +6,7 @@ import { handleGenerateImage } from "./actions/generate-image";
 import { handleUploadImage } from "./actions/upload-image";
 import { handleUploadCarouselImages } from "./actions/upload-carousel-images";
 import { handleUploadDocument } from "./actions/upload-document";
+import { handleUploadVideo } from "./actions/upload-video";
 import { handlePublishPost } from "./actions/publish-post";
 import { handleHealth } from "./handlers/health";
 import { handleInfo } from "./handlers/info";
@@ -372,7 +373,6 @@ export default {
       ) {
         try {
           const body = (await request.json()) as any;
-          console.log("MCP Request:", JSON.stringify(body));
 
           if (body.jsonrpc !== "2.0") {
             return new Response(
@@ -471,6 +471,8 @@ export default {
                       destructiveHint: false,
                       idempotentHint: true,
                       openWorldHint: false,
+                      "openai/toolInvocation/invoking": "Loading LinkedIn Post Composer...",
+                      "openai/toolInvocation/invoked": "LinkedIn Post Composer loaded",
                     },
                     _meta: {
                       "openai/outputTemplate": WIDGET_URL,
@@ -580,6 +582,32 @@ export default {
                     },
                   },
                   {
+                    name: "upload_video",
+                    description: "Upload video (MP4, MOV, AVI, WMV, FLV, WEBM) for LinkedIn posts (server action)",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        video: {
+                          type: "string",
+                          description: "Base64 encoded video data (with data:video/... prefix)",
+                        },
+                        filename: {
+                          type: "string",
+                          description: "Original filename",
+                        },
+                        fileType: {
+                          type: "string",
+                          description: "MIME type of the video",
+                        },
+                        fileSize: {
+                          type: "number",
+                          description: "File size in bytes",
+                        },
+                      },
+                      required: ["video", "filename", "fileType", "fileSize"],
+                    },
+                  },
+                  {
                     name: "publish_post",
                     description: "Publish post to LinkedIn (server action)",
                     inputSchema: {
@@ -610,9 +638,13 @@ export default {
                           type: "string",
                           description: "Document URL (optional, for document posts)",
                         },
+                        videoUrl: {
+                          type: "string",
+                          description: "Video URL (optional, for video posts)",
+                        },
                         postType: {
                           type: "string",
-                          enum: ["text", "image", "carousel", "document"],
+                          enum: ["text", "image", "carousel", "document", "video"],
                         },
                       },
                       required: ["accountId", "content", "postType"],
@@ -767,6 +799,17 @@ export default {
                   };
                   break;
 
+                case "upload_video":
+                  toolResult = await handleUploadVideo(toolArgs, env);
+                  textMessage = toolResult.success
+                    ? `Video uploaded successfully!`
+                    : `Error: ${toolResult.error}`;
+                  result = {
+                    content: [{ type: "text", text: textMessage }],
+                    structuredContent: toolResult,
+                  };
+                  break;
+
                 case "publish_post":
                   toolResult = await handlePublishPost(toolArgs, env);
                   textMessage = toolResult.message;
@@ -816,7 +859,6 @@ export default {
           }
 
           const response = { jsonrpc: "2.0", id: body.id, result };
-          console.log("MCP Response:", JSON.stringify(response));
 
           return new Response(JSON.stringify(response), {
             headers: {

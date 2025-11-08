@@ -2,6 +2,7 @@ import type { PublishPostOutput } from '../../../shared-types';
 import { LinkedInPostsAPI } from '../integrations/linkedin-posts-api';
 import { LinkedInMultiImageAPI } from '../integrations/linkedin-multiimage-api';
 import { LinkedInDocumentsAPI } from '../integrations/linkedin-documents-api';
+import { LinkedInVideosAPI } from '../integrations/linkedin-videos-api';
 import type { Env } from '../index';
 
 export interface PublishPostParams {
@@ -10,11 +11,12 @@ export interface PublishPostParams {
   imageUrl?: string;
   carouselImageUrls?: string[];  // For carousel posts (2-20 images)
   documentUrl?: string;  // For document posts
-  postType: 'text' | 'image' | 'carousel' | 'document';
+  videoUrl?: string;  // For video posts
+  postType: 'text' | 'image' | 'carousel' | 'document' | 'video';
 }
 
 export async function handlePublishPost(params: PublishPostParams, env: Env): Promise<PublishPostOutput> {
-  const { accountId, content, imageUrl, carouselImageUrls, documentUrl, postType } = params;
+  const { accountId, content, imageUrl, carouselImageUrls, documentUrl, videoUrl, postType } = params;
 
   // Validate content
   if (!content || content.trim().length === 0) {
@@ -69,6 +71,15 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
     };
   }
 
+  // Validate video for video posts
+  if (postType === 'video' && !videoUrl) {
+    return {
+      success: false,
+      message: 'Video URL is required for video posts',
+      error: 'VIDEO_REQUIRED'
+    };
+  }
+
   // Get authenticated user ID from KV storage
   const userId = await getAuthenticatedUserId(env);
 
@@ -85,76 +96,63 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
   let imageUrn: string | undefined;
 
   if (imageUrl) {
-    let r2ImageUrl = imageUrl;
-
     // Check if imageUrl is a data URI (base64 encoded image from upload)
-    // If so, upload to R2 first
+    // OR an R2 URL (from AI-generated images)
     if (imageUrl.startsWith('data:')) {
-      console.log('Image is a data URI, uploading to R2 first...');
+      console.log('Image is data URI, uploading directly to LinkedIn...');
 
-      const { R2ImageStorage } = await import('../integrations/r2-storage');
-      const storage = new R2ImageStorage(env);
+      // Upload directly to LinkedIn (documents, manual uploads)
+      imageUrn = await linkedInAPI.uploadImageFromDataUri(userId, imageUrl, accountId) || undefined;
 
-      // Parse the data URI
-      const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-
-      if (!matches) {
+      if (!imageUrn) {
         return {
           success: false,
-          message: 'Invalid image data format',
-          error: 'INVALID_IMAGE_FORMAT'
+          message: 'Failed to upload image to LinkedIn',
+          error: 'IMAGE_UPLOAD_FAILED'
         };
       }
+    } else if (imageUrl.startsWith('http')) {
+      console.log('Image is R2 URL, uploading from R2 to LinkedIn...');
 
-      const contentType = matches[1];
-      const base64Data = matches[2];
+      // Upload from R2 (AI-generated images)
+      imageUrn = await linkedInAPI.uploadImage(userId, imageUrl, accountId) || undefined;
 
-      // Convert base64 to Uint8Array (optimized for large files)
-      const binaryString = atob(base64Data);
-      const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-
-      // Upload to R2
-      const fileName = `upload-${Date.now()}.${contentType.split('/')[1]}`;
-      const r2Result = await storage.uploadImage({
-        imageData: bytes,
-        fileName,
-        contentType,
-      });
-
-      if (!r2Result.success) {
+      if (!imageUrn) {
         return {
           success: false,
-          message: 'Failed to upload image to storage',
-          error: 'R2_UPLOAD_FAILED'
+          message: 'Failed to upload image to LinkedIn',
+          error: 'IMAGE_UPLOAD_FAILED'
         };
       }
-
-      r2ImageUrl = r2Result.publicUrl!;
-      console.log('Image uploaded to R2:', r2ImageUrl);
-    }
-
-    // Now upload to LinkedIn with the R2 URL
-    // Pass the accountId as the author/owner of the image
-    imageUrn = await linkedInAPI.uploadImage(userId, r2ImageUrl, accountId) || undefined;
-
-    if (!imageUrn) {
+    } else {
+      // Invalid image source
       return {
         success: false,
-        message: 'Failed to upload image to LinkedIn',
-        error: 'IMAGE_UPLOAD_FAILED'
+        message: 'Image must be provided as data URI or HTTP URL',
+        error: 'INVALID_IMAGE_SOURCE'
       };
     }
   }
 
-  // Handle carousel posts separately
+  // Handle carousel posts - DIRECT UPLOAD (no R2)
   if (postType === 'carousel' && carouselImageUrls && carouselImageUrls.length >= 2) {
     const multiImageAPI = new LinkedInMultiImageAPI(env);
 
-    // Upload all carousel images to LinkedIn
+    // Upload all carousel images directly to LinkedIn (no R2)
     const carouselImageUrns: string[] = [];
 
     for (const imageUrl of carouselImageUrls) {
-      const urn = await linkedInAPI.uploadImage(userId, imageUrl, accountId);
+      // All images should be data URIs now
+      if (!imageUrl.startsWith('data:')) {
+        return {
+          success: false,
+          message: 'Carousel images must be provided as data URIs',
+          error: 'INVALID_CAROUSEL_IMAGE_SOURCE'
+        };
+      }
+
+      // Upload directly to LinkedIn
+      const urn = await linkedInAPI.uploadImageFromDataUri(userId, imageUrl, accountId);
       if (!urn) {
         return {
           success: false,
@@ -162,8 +160,16 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
           error: 'CAROUSEL_IMAGE_UPLOAD_FAILED'
         };
       }
-      carouselImageUrns.push(urn);
+
+      // Convert digitalmediaAsset URN to image URN for REST Posts API
+      // Assets API returns urn:li:digitalmediaAsset:XXX
+      // REST Posts API requires urn:li:image:XXX
+      // LinkedIn uses the same ID for both URN types
+      const imageUrn = urn.replace('digitalmediaAsset', 'image');
+      carouselImageUrns.push(imageUrn);
     }
+
+    console.log(`Uploaded ${carouselImageUrns.length} carousel images directly to LinkedIn`);
 
     // Create multi-image post
     const result = await multiImageAPI.createMultiImagePost(userId, {
@@ -188,110 +194,154 @@ export async function handlePublishPost(params: PublishPostParams, env: Env): Pr
     }
   }
 
-  // Handle document posts
+  // Handle document posts - DIRECT UPLOAD (no R2)
   if (postType === 'document' && documentUrl) {
-    let r2DocumentUrl = documentUrl;
-
-    // Check if documentUrl is a data URI (base64 encoded document from upload)
-    // If so, upload to R2 first
-    if (documentUrl.startsWith('data:')) {
-      console.log('Document is a data URI, uploading to R2 first...');
-
-      const { R2ImageStorage } = await import('../integrations/r2-storage');
-      const storage = new R2ImageStorage(env);
-
-      // Parse the data URI
-      const matches = documentUrl.match(/^data:([^;]+);base64,(.+)$/);
-
-      if (!matches) {
-        return {
-          success: false,
-          message: 'Invalid document data format',
-          error: 'INVALID_DOCUMENT_FORMAT'
-        };
-      }
-
-      const contentType = matches[1];
-      const base64Data = matches[2];
-
-      // Convert base64 to Uint8Array (optimized for large files)
-      const binaryString = atob(base64Data);
-      const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-
-      // Generate filename based on content type
-      let extension = 'pdf';
-      if (contentType.includes('word')) {
-        extension = contentType.includes('openxmlformats') ? 'docx' : 'doc';
-      } else if (contentType.includes('presentation') || contentType.includes('powerpoint')) {
-        extension = contentType.includes('openxmlformats') ? 'pptx' : 'ppt';
-      }
-
-      const fileName = `document-${Date.now()}.${extension}`;
-
-      // Upload to R2 using the document upload method
-      const r2Result = await storage.uploadDocument({
-        documentData: bytes,
-        fileName,
-        contentType,
-      });
-
-      if (!r2Result.success) {
-        return {
-          success: false,
-          message: 'Failed to upload document to storage',
-          error: 'R2_UPLOAD_FAILED'
-        };
-      }
-
-      r2DocumentUrl = r2Result.publicUrl!;
-      console.log('Document uploaded to R2:', r2DocumentUrl);
-    }
-
-    // Use LinkedIn Documents API to upload and publish
     try {
       const documentsAPI = new LinkedInDocumentsAPI(env);
 
-      // Extract filename from R2 URL for document title
-      // URL format: https://.../images/linkedin-documents/1234567890-document-1234567890.pdf
-      const urlParts = r2DocumentUrl.split('/');
-      const fileNameWithTimestamp = urlParts[urlParts.length - 1];
-      // Remove timestamp prefix (format: timestamp-document-timestamp.ext)
-      const fileName = fileNameWithTimestamp.replace(/^\d+-/, '');
-      const documentTitle = fileName.split('.')[0] || 'Document';
+      // If documentUrl is a data URI, upload directly to LinkedIn (skip R2)
+      if (documentUrl.startsWith('data:')) {
+        console.log('Document is data URI, uploading directly to LinkedIn...');
 
-      console.log('Publishing document post:', {
-        documentUrl: r2DocumentUrl,
-        documentTitle,
-        author: accountId,
-      });
+        // Parse the data URI
+        const matches = documentUrl.match(/^data:([^;]+);base64,(.+)$/);
 
-      const result = await documentsAPI.uploadAndCreatePost({
-        userId,
-        documentUrl: r2DocumentUrl,
-        authorUrn: accountId,
-        title: documentTitle,
-        content,
-      });
+        if (!matches) {
+          return {
+            success: false,
+            message: 'Invalid document data format',
+            error: 'INVALID_DOCUMENT_FORMAT'
+          };
+        }
 
-      if (result.success) {
-        return {
-          success: true,
-          postId: result.postId,
-          postUrl: result.postUrl,
-          message: 'Document post published successfully to LinkedIn!',
-        };
-      } else {
-        return {
-          success: false,
-          message: result.error || 'Failed to publish document post',
-          error: result.error,
-        };
+        const contentType = matches[1];
+
+        // Generate document title based on content type
+        let extension = 'pdf';
+        if (contentType.includes('word')) {
+          extension = contentType.includes('openxmlformats') ? 'docx' : 'doc';
+        } else if (contentType.includes('presentation') || contentType.includes('powerpoint')) {
+          extension = contentType.includes('openxmlformats') ? 'pptx' : 'ppt';
+        }
+
+        const documentTitle = `Document.${extension}`;
+
+        // Upload directly to LinkedIn (no R2)
+        const result = await documentsAPI.uploadAndCreatePostFromDataUri({
+          userId,
+          dataUri: documentUrl,
+          contentType,
+          authorUrn: accountId,
+          title: documentTitle,
+          content,
+        });
+
+        if (result.success) {
+          return {
+            success: true,
+            postId: result.postId,
+            postUrl: result.postUrl,
+            message: 'Document post published successfully to LinkedIn!',
+          };
+        } else {
+          return {
+            success: false,
+            message: result.error || 'Failed to publish document post',
+            error: result.error,
+          };
+        }
       }
+
+      // Fallback for non-data-URI documents (if needed)
+      return {
+        success: false,
+        message: 'Document must be provided as data URI',
+        error: 'INVALID_DOCUMENT_SOURCE'
+      };
     } catch (error: any) {
       console.error('Unexpected error in document post flow:', error);
       return {
         success: false,
         message: 'Unexpected error while publishing document post: ' + error.message,
+        error: error.message,
+      };
+    }
+  }
+
+  // Handle video posts - DIRECT UPLOAD (no R2)
+  if (postType === 'video' && videoUrl) {
+    try {
+      const videosAPI = new LinkedInVideosAPI(env);
+
+      // If videoUrl is a data URI, upload directly to LinkedIn (skip R2)
+      if (videoUrl.startsWith('data:')) {
+        console.log('Video is data URI, uploading directly to LinkedIn...');
+
+        // Parse the data URI to get content type
+        const matches = videoUrl.match(/^data:([^;]+);base64,(.+)$/);
+
+        if (!matches) {
+          return {
+            success: false,
+            message: 'Invalid video data format',
+            error: 'INVALID_VIDEO_FORMAT'
+          };
+        }
+
+        const contentType = matches[1];
+
+        // Generate video title based on content type
+        let extension = 'mp4';
+        if (contentType.includes('quicktime')) {
+          extension = 'mov';
+        } else if (contentType.includes('x-msvideo')) {
+          extension = 'avi';
+        } else if (contentType.includes('x-ms-wmv')) {
+          extension = 'wmv';
+        } else if (contentType.includes('x-flv')) {
+          extension = 'flv';
+        } else if (contentType.includes('webm')) {
+          extension = 'webm';
+        }
+
+        const videoTitle = `Video.${extension}`;
+
+        // Upload directly to LinkedIn (no R2)
+        const result = await videosAPI.uploadAndCreatePostFromDataUri({
+          userId,
+          dataUri: videoUrl,
+          authorUrn: accountId,
+          title: videoTitle,
+          content,
+        });
+
+        if (result.success) {
+          return {
+            success: true,
+            postId: result.postId,
+            postUrl: result.postUrl,
+            message: 'Video post published successfully to LinkedIn!',
+          };
+        } else {
+          return {
+            success: false,
+            message: result.error || 'Failed to publish video post',
+            error: result.error,
+          };
+        }
+      }
+
+      // Fallback for non-data-URI videos (if needed)
+      return {
+        success: false,
+        message: 'Video must be provided as data URI',
+        error: 'INVALID_VIDEO_SOURCE'
+      };
+    } catch (error: any) {
+      console.error('Unexpected error in video post flow:', error);
+      return {
+        success: false,
+        message: 'Unexpected error while publishing video post: ' + error.message,
         error: error.message,
       };
     }

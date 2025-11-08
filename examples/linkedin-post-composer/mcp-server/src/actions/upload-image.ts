@@ -24,7 +24,7 @@ export async function handleUploadImage(params: UploadImageParams, env: Env): Pr
   }
 
   try {
-    // Parse base64 data URL
+    // Validate base64 data URL format
     // Format: data:image/png;base64,iVBORw0KGgoAAAANS...
     const matches = image.match(/^data:([^;]+);base64,(.+)$/);
 
@@ -36,37 +36,29 @@ export async function handleUploadImage(params: UploadImageParams, env: Env): Pr
     }
 
     const contentType = matches[1];
-    const base64Data = matches[2];
 
-    // Convert base64 to Uint8Array (optimized for large files)
-    const binaryString = atob(base64Data);
-    const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-
-    // Upload to R2
-    const storage = new R2ImageStorage(env);
-    const result = await storage.uploadImage({
-      imageData: bytes,
-      fileName: filename,
-      contentType,
-    });
-
-    if (!result.success) {
+    // Validate it's an image content type
+    if (!contentType.startsWith('image/')) {
       return {
         success: false,
-        error: result.error || 'Failed to upload image'
+        error: 'Invalid content type. Expected image/*'
       };
     }
 
+    console.log('Image validated, returning data URI for direct upload');
+
+    // Return the data URI directly (no R2 upload)
+    // The publish_post handler will upload directly to LinkedIn when creating the post
     return {
       success: true,
-      imageUrl: result.publicUrl!,
-      imageKey: result.key!,
+      imageUrl: image, // Return the data URI itself
+      imageKey: filename, // Use filename as a reference
     };
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('Image validation error:', error);
     return {
       success: false,
-      error: error.message || 'Failed to process and upload image'
+      error: error.message || 'Failed to validate image'
     };
   }
 }

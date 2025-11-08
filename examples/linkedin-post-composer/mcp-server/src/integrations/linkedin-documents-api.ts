@@ -60,7 +60,7 @@ export class LinkedInDocumentsAPI {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'LinkedIn-Version': '202511',  // Current version in YYYYMM format (November 2025)
+            'LinkedIn-Version': '202411',  // Current version in YYYYMM format (November 2024)
             'X-Restli-Protocol-Version': '2.0.0',
             'Content-Type': 'application/json',
           },
@@ -81,7 +81,6 @@ export class LinkedInDocumentsAPI {
       }
 
       const responseText = await response.text();
-      console.log('Initialize upload response body:', responseText.substring(0, 500));
 
       let data: any;
       try {
@@ -215,13 +214,11 @@ export class LinkedInDocumentsAPI {
         isReshareDisabledByAuthor: false,
       };
 
-      console.log('Post payload:', JSON.stringify(payload, null, 2));
-
       const response = await fetch('https://api.linkedin.com/rest/posts', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'LinkedIn-Version': '202511',  // Current version for Posts API (November 2025)
+          'LinkedIn-Version': '202411',  // Current version for Posts API (November 2024)
           'X-Restli-Protocol-Version': '2.0.0',
           'Content-Type': 'application/json',
         },
@@ -240,22 +237,77 @@ export class LinkedInDocumentsAPI {
       }
 
       const responseText = await response.text();
-      console.log('Create post response body:', responseText.substring(0, 500));
+      console.log('Create post response body length:', responseText.length);
 
-      let postData: any;
-      try {
-        postData = JSON.parse(responseText);
-        console.log('Document post created successfully:', postData);
-      } catch (parseError: any) {
-        console.error('Failed to parse LinkedIn create post response:', parseError);
-        console.error('Response was:', responseText);
-        return {
-          success: false,
-          error: 'Failed to parse LinkedIn API response',
-        };
+      // LinkedIn may return the post ID in headers instead of body
+      let postId: string | undefined;
+
+      // Handle empty response (LinkedIn sometimes returns 201 Created with empty body and ID in headers)
+      if (!responseText || responseText.trim().length === 0) {
+        console.log('Empty response body - checking headers for post ID');
+
+        // Check for post ID in common header locations
+        const locationHeader = response.headers.get('location');
+        const xLinkedInId = response.headers.get('x-linkedin-id');
+        const xRestliId = response.headers.get('x-restli-id');
+
+        console.log('Location header:', locationHeader);
+        console.log('x-linkedin-id header:', xLinkedInId);
+        console.log('x-restli-id header:', xRestliId);
+
+        // Try to extract ID from Location header (format: .../posts/{id} or urn:li:share:{id})
+        if (locationHeader) {
+          const locationMatch = locationHeader.match(/\/posts\/([^\/\?]+)/);
+          if (locationMatch) {
+            postId = locationMatch[1];
+            console.log('Extracted post ID from Location header:', postId);
+          }
+        }
+
+        // Try other header fields
+        if (!postId && xLinkedInId) {
+          postId = xLinkedInId;
+          console.log('Using x-linkedin-id header:', postId);
+        }
+
+        if (!postId && xRestliId) {
+          postId = xRestliId;
+          console.log('Using x-restli-id header:', postId);
+        }
+
+        if (!postId) {
+          console.error('No post ID found in headers or body');
+          return {
+            success: false,
+            error: 'LinkedIn API returned empty response with no post ID in headers',
+          };
+        }
+      } else {
+        // Parse response body to get post ID
+        let postData: any;
+        try {
+          postData = JSON.parse(responseText);
+          console.log('Document post created successfully, postId:', postData?.id);
+          postId = postData.id;
+        } catch (parseError: any) {
+          console.error('Failed to parse LinkedIn create post response:', parseError.message);
+          console.error('Response text length:', responseText.length);
+          console.error('First 200 chars:', responseText.substring(0, 200));
+          console.error('Last 200 chars:', responseText.substring(Math.max(0, responseText.length - 200)));
+          return {
+            success: false,
+            error: `Failed to parse LinkedIn API response: ${parseError.message}`,
+          };
+        }
       }
 
-      const postId = postData.id;
+      if (!postId) {
+        console.error('No post ID available after parsing');
+        return {
+          success: false,
+          error: 'Failed to extract post ID from LinkedIn response',
+        };
+      }
 
       // Construct post URL
       const postUrl = `https://www.linkedin.com/feed/update/${postId}`;
@@ -270,6 +322,99 @@ export class LinkedInDocumentsAPI {
       return {
         success: false,
         error: error.message || 'Failed to create document post',
+      };
+    }
+  }
+
+  /**
+   * Upload document directly from data URI and create post (skip R2)
+   */
+  async uploadAndCreatePostFromDataUri(args: {
+    userId: string;
+    dataUri: string;
+    contentType: string;
+    authorUrn: string;
+    title: string;
+    content: string;
+  }): Promise<DocumentPostResponse> {
+    try {
+      console.log('[uploadAndCreatePostFromDataUri] Starting direct upload');
+
+      // Parse data URI
+      const matches = args.dataUri.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        return {
+          success: false,
+          error: 'Invalid data URI format',
+        };
+      }
+
+      const base64Data = matches[2];
+
+      // Convert base64 to ArrayBuffer directly (more efficient)
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      console.log('[uploadAndCreatePostFromDataUri] Document size:', bytes.length, 'bytes');
+
+      const accessToken = await this.getAccessToken(args.userId);
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Not authenticated',
+        };
+      }
+
+      // Step 1: Initialize upload with LinkedIn
+      const uploadInfo = await this.initializeUpload(accessToken, args.authorUrn);
+      if (!uploadInfo) {
+        return {
+          success: false,
+          error: 'Failed to initialize document upload with LinkedIn',
+        };
+      }
+
+      console.log('[uploadAndCreatePostFromDataUri] Got upload URL, uploading document...');
+
+      // Step 2: Upload document binary directly to LinkedIn
+      const uploadResponse = await fetch(uploadInfo.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': args.contentType,
+        },
+        body: bytes,
+      });
+
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.text();
+        console.error('LinkedIn document upload failed:', uploadResponse.status, error);
+        return {
+          success: false,
+          error: 'Failed to upload document to LinkedIn',
+        };
+      }
+
+      console.log('[uploadAndCreatePostFromDataUri] Document uploaded, creating post...');
+
+      // Step 3: Create post with document
+      const result = await this.createDocumentPost({
+        userId: args.userId,
+        authorUrn: args.authorUrn,
+        content: args.content,
+        documentUrn: uploadInfo.documentUrn,
+        documentTitle: args.title,
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('[uploadAndCreatePostFromDataUri] Error:', error);
+      return {
+        success: false,
+        error: error.message || 'Unexpected error during document upload',
       };
     }
   }

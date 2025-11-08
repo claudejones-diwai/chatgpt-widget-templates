@@ -10,6 +10,8 @@ interface OpenAIGlobal {
   readonly widgetState?: any;
   readonly locale?: string;
   readonly callTool: (toolName: string, params: any) => Promise<any>;
+  readonly sendFollowUpMessage?: (options: { message: string }) => void;
+  readonly setWidgetState?: (state: any) => void;
 }
 
 declare global {
